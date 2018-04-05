@@ -27,6 +27,31 @@
 #include <scope_guard.hpp>
 
 TEST_CASE("DEFER") {
-  SECTION("DEFER") {
+  SECTION("int") {
+    int i = 0;
+    {
+      REQUIRE(i == 0);
+      DEFER{
+        i = 2;
+      };
+      i = 1;
+      REQUIRE(i == 1);
+    }
+    REQUIRE(i == 2);
+  }
+
+  SECTION("ofstream") {
+    std::ofstream file;
+    {
+      file.open("test.txt", std::fstream::out | std::ofstream::trunc);
+      REQUIRE(file.is_open());
+      DEFER{
+        file << "close file" << std::endl;
+        file.close();
+      };
+      REQUIRE(file.is_open());
+      file << "write to file" << std::endl;
+    }
+    REQUIRE(!file.is_open());
   }
 }

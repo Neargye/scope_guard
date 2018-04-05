@@ -26,14 +26,14 @@
 #include <fstream>
 
 int main() {
-  std::ofstream fs;
-  fs.open("test.txt", std::fstream::out | std::ofstream::trunc);
+  std::ofstream file;
+  file.open("test.txt", std::fstream::out | std::ofstream::trunc);
   DEFER{
-         fs.close();
-         std::cout << "close fstream" << std::endl;
+         file.close();
+         std::cout << "close file" << std::endl;
         };
 
-  fs << "example" << std::endl;
+  file << "example" << std::endl;
   std::cout << "write to file" << std::endl;
 
   return 0;

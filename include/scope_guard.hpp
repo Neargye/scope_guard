@@ -59,14 +59,13 @@ inline constexpr ScopeExit<typename std::decay<EF>::type> operator+(ScopeExitTag
 
 } // namespace scope_guard
 
-
 #if defined(__has_cpp_attribute)
-  #if __has_cpp_attribute(maybe_unused)
+  #if (__cplusplus >= 201703L) && __has_cpp_attribute(maybe_unused)
   #define SCOPE_GUARD_ATTRIBUTE_UNUSED [[maybe_unused]]
   #elif __has_cpp_attribute(gnu::unused)
   #define SCOPE_GUARD_ATTRIBUTE_UNUSED [[gnu::unused]]
   #endif
-#elif defined(__GNUG__) || defined(__clang__)
+#elif defined(__GNUG__)
 #define SCOPE_GUARD_ATTRIBUTE_UNUSED __attribute__((unused))
 #elif defined(_MSC_VER)
 #define SCOPE_GUARD_ATTRIBUTE_UNUSED __pragma(warning(suppress:4100 4101 4189))

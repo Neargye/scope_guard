@@ -1,5 +1,5 @@
 // scope_guard c++ https://github.com/Neargye/scope_guard
-// Vesion 0.1.0
+// Vesion 0.1.1
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
@@ -28,33 +28,33 @@
 
 namespace scope_guard {
 
-template <typename EF>
-struct ScopeExit {
+template <typename A>
+class ScopeExit final {
+ public:
   ScopeExit() = delete;
   ScopeExit(const ScopeExit&) = delete;
   ScopeExit(ScopeExit&&) = delete;
   ScopeExit& operator=(const ScopeExit&) = delete;
   ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline constexpr ScopeExit(EF&& exit_function) noexcept : exit_function{std::forward<EF>(exit_function)} {}
+  inline constexpr ScopeExit(A&& action) noexcept: action_{std::move(action)} {}
 
-  ~ScopeExit() noexcept { exit_function(); }
+  inline ~ScopeExit() noexcept { action_(); }
 
  private:
-  EF exit_function;
+  A action_;
 };
 
-template <typename EF>
-inline constexpr ScopeExit<typename std::decay<EF>::type> MakeScopeExit(EF&& exit_function) noexcept {
-  return {std::forward<EF>(exit_function)};
+template <typename A>
+inline constexpr ScopeExit<typename std::decay<A>::type> MakeScopeExit(A&& action) noexcept {
+  return {std::forward<A>(action)};
 }
 
 struct ScopeExitTag {};
 
-template <typename EF>
-inline constexpr ScopeExit<typename std::decay<EF>::type> operator+(ScopeExitTag, EF&& exit_function) noexcept {
-  return {std::forward<EF>(exit_function)};
-
+template <typename A>
+inline constexpr ScopeExit<typename std::decay<A>::type> operator+(ScopeExitTag, A&& action) noexcept {
+  return {std::forward<A>(action)};
 }
 
 } // namespace scope_guard
@@ -65,7 +65,7 @@ inline constexpr ScopeExit<typename std::decay<EF>::type> operator+(ScopeExitTag
   #elif __has_cpp_attribute(gnu::unused)
   #define SCOPE_GUARD_ATTRIBUTE_UNUSED [[gnu::unused]]
   #endif
-#elif defined(__GNUG__)
+#elif defined(__GNUG__) || defined(__clang__)
 #define SCOPE_GUARD_ATTRIBUTE_UNUSED __attribute__((unused))
 #elif defined(_MSC_VER)
 #define SCOPE_GUARD_ATTRIBUTE_UNUSED __pragma(warning(suppress:4100 4101 4189))
@@ -84,6 +84,4 @@ inline constexpr ScopeExit<typename std::decay<EF>::type> operator+(ScopeExitTag
 #define DEFER \
   SCOPE_GUARD_ATTRIBUTE_UNUSED const auto& \
   SCOPE_GUARD_CONCAT(defer_object_, __LINE__) = ::scope_guard::ScopeExitTag{} + [&]() noexcept
-#else
-#error ""
 #endif

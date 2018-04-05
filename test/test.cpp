@@ -25,19 +25,20 @@
 
 #include <catch.hpp>
 #include <scope_guard.hpp>
+#include <fstream>
 
 TEST_CASE("DEFER") {
-  SECTION("int") {
-    int i = 0;
+  SECTION("counter") {
+    int counter = 0;
     {
-      REQUIRE(i == 0);
+      REQUIRE(counter == 0);
       DEFER{
-        i = 2;
+        counter++;
       };
-      i = 1;
-      REQUIRE(i == 1);
+      counter++;
+      REQUIRE(counter == 1);
     }
-    REQUIRE(i == 2);
+    REQUIRE(counter == 2);
   }
 
   SECTION("ofstream") {
@@ -53,5 +54,14 @@ TEST_CASE("DEFER") {
       file << "write to file" << std::endl;
     }
     REQUIRE(!file.is_open());
+  }
+
+  SECTION("counter for") {
+    int counter = 0;
+    const int result = 10;
+    REQUIRE(counter == 0);
+    for (int i = 0; i < result; ++i)
+      DEFER{ counter++; };
+    REQUIRE(counter == result);
   }
 }

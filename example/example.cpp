@@ -26,6 +26,11 @@
 #include <fstream>
 
 int main() {
+  for(int i = 0; i < 4; ++i)
+    DEFER{ std::cout << i << std::endl; };
+
+  // prints "0 1 2 3"
+
   std::ofstream file;
   file.open("test.txt", std::fstream::out | std::ofstream::trunc);
   DEFER{
@@ -35,6 +40,9 @@ int main() {
 
   file << "example" << std::endl;
   std::cout << "write to file" << std::endl;
+
+  // prints "write to file"
+  // prints "close file"
 
   return 0;
 }

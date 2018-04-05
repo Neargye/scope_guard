@@ -1,0 +1,26 @@
+dist: trusty
+
+sudo: required
+
+language: cpp
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - g++
+  - clang++
+
+env:
+  - PLATFORM=x64 CONFIGURATION=Release
+
+script:
+  - mkdir -p build
+  - cd build
+  - cmake .. -DCMAKE_BUILD_TYPE=$CONFIGURATION -DTARGET_CPU=$PLATFORM
+  - cmake --build . --config $CONFIGURATION
+  - ctest -V --output-on-failure -С $CONFIGURATION
+
+notifications:
+  email: false

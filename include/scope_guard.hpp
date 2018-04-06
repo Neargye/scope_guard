@@ -1,5 +1,5 @@
 // scope_guard c++ https://github.com/Neargye/scope_guard
-// Vesion 0.1.1
+// Vesion 0.2.0
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
@@ -33,30 +33,60 @@ class ScopeExit final {
  public:
   ScopeExit() = delete;
   ScopeExit(const ScopeExit&) = delete;
-  ScopeExit(ScopeExit&&) = delete;
   ScopeExit& operator=(const ScopeExit&) = delete;
-  ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline constexpr ScopeExit(A&& action) noexcept: action_{std::move(action)} {}
+  inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
+      : action_{std::move_if_noexcept(other.action_)} {
+    dismissed_ = other.dismissed_;
+    other.dismissed_ = true;
+  }
 
-  inline ~ScopeExit() noexcept { action_(); }
+  inline explicit ScopeExit(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
+      : dismissed_{false},
+        action_{std::move_if_noexcept(action)} {}
+
+  inline explicit ScopeExit(const A& action) noexcept(std::is_nothrow_copy_constructible<A>::value)
+      : dismissed_{false},
+        action_{action} {}
+
+  inline void Dismiss() noexcept {
+    dismissed_ = true;
+  }
+
+  inline void Execute() noexcept {
+    if (!dismissed_)
+      action_();
+    dismissed_ = true;
+  }
+
+  inline ~ScopeExit() noexcept {
+    if (!dismissed_)
+      action_();
+  }
 
  private:
+  bool dismissed_;
   A action_;
 };
 
 template <typename A>
-inline constexpr ScopeExit<typename std::decay<A>::type> MakeScopeExit(A&& action) noexcept {
-  return {std::forward<A>(action)};
+using ScopeExitlDecay = ScopeExit<typename std::decay<A>::type>;
+
+template <typename A>
+inline ScopeExitlDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(ScopeExitlDecay<A>{static_cast<A&&>(action)})) {
+  return ScopeExitlDecay<A>{std::forward<A>(action)};
 }
+
+namespace detail {
 
 struct ScopeExitTag {};
 
 template <typename A>
-inline constexpr ScopeExit<typename std::decay<A>::type> operator+(ScopeExitTag, A&& action) noexcept {
-  return {std::forward<A>(action)};
+inline ScopeExitlDecay<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExitlDecay<A>{static_cast<A&&>(action)})) {
+  return ScopeExitlDecay<A>{std::forward<A>(action)};
 }
 
+} // namespace detail
 } // namespace scope_guard
 
 #if defined(__has_cpp_attribute)
@@ -68,7 +98,7 @@ inline constexpr ScopeExit<typename std::decay<A>::type> operator+(ScopeExitTag,
 #elif defined(__GNUG__) || defined(__clang__)
 #define SCOPE_GUARD_ATTRIBUTE_UNUSED __attribute__((unused))
 #elif defined(_MSC_VER)
-#define SCOPE_GUARD_ATTRIBUTE_UNUSED __pragma(warning(suppress:4100 4101 4189))
+#define SCOPE_GUARD_ATTRIBUTE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
 #else
 #define SCOPE_GUARD_ATTRIBUTE_UNUSED
 #endif
@@ -76,12 +106,14 @@ inline constexpr ScopeExit<typename std::decay<A>::type> operator+(ScopeExitTag,
 #define SCOPE_GUARD_CONCAT_(s1, s2) s1##s2
 #define SCOPE_GUARD_CONCAT(s1, s2) SCOPE_GUARD_CONCAT_(s1, s2)
 
+#define DEFER_TYPE SCOPE_GUARD_ATTRIBUTE_UNUSED auto
+
 #if defined(__COUNTER__)
 #define DEFER \
-  SCOPE_GUARD_ATTRIBUTE_UNUSED const auto& \
-  SCOPE_GUARD_CONCAT(defer_object_, __COUNTER__) = ::scope_guard::ScopeExitTag{} + [&]() noexcept
+  SCOPE_GUARD_ATTRIBUTE_UNUSED const auto \
+  SCOPE_GUARD_CONCAT(__defer__object__, __COUNTER__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept
 #elif defined(__LINE__)
 #define DEFER \
-  SCOPE_GUARD_ATTRIBUTE_UNUSED const auto& \
-  SCOPE_GUARD_CONCAT(defer_object_, __LINE__) = ::scope_guard::ScopeExitTag{} + [&]() noexcept
+  SCOPE_GUARD_ATTRIBUTE_UNUSED const auto \
+  SCOPE_GUARD_CONCAT(__defer__object__, __LINE__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept
 #endif

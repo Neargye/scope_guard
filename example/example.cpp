@@ -26,10 +26,13 @@
 #include <fstream>
 
 int main() {
-  for(int i = 0; i < 4; ++i)
-    DEFER{ std::cout << i << std::endl; };
+  DEFER_TYPE custom_defer = scope_guard::MakeScopeExit([&]() noexcept { std::cout << "custom defer" << std::endl; });
+  DEFER_TYPE custom_defer_not_call = scope_guard::MakeScopeExit([&]() noexcept { std::cout << "not call" << std::endl; });
 
-  // prints "0 1 2 3"
+  std::cout << "{ ";
+  for(int i = 0; i < 4; ++i)
+    DEFER{ std::cout << i << " "; };
+  std::cout << "}" << std::endl;
 
   std::ofstream file;
   file.open("test.txt", std::fstream::out | std::ofstream::trunc);
@@ -41,8 +44,12 @@ int main() {
   file << "example" << std::endl;
   std::cout << "write to file" << std::endl;
 
+  custom_defer_not_call.Dismiss();
+
+  // prints "{ 0 1 2 3 }"
   // prints "write to file"
   // prints "close file"
+  // prints "custom defer"
 
   return 0;
 }

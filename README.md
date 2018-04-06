@@ -20,6 +20,14 @@ master |[![Build Status](https://travis-ci.org/Neargye/scope_guard.svg?branch=ma
 #include <fstream>
 
 int main() {
+  DEFER_TYPE custom_defer = MAKE_DEFER{ std::cout << "custom defer" << std::endl; };
+  DEFER_TYPE custom_defer_not_call = MAKE_DEFER{ std::cout << "not call" << std::endl; };
+
+  std::cout << "{ ";
+  for(int i = 0; i < 4; ++i)
+    DEFER{ std::cout << i << " "; };
+  std::cout << "}" << std::endl;
+
   std::ofstream file;
   file.open("test.txt", std::fstream::out | std::ofstream::trunc);
   DEFER{
@@ -29,6 +37,13 @@ int main() {
 
   file << "example" << std::endl;
   std::cout << "write to file" << std::endl;
+
+  custom_defer_not_call.Dismiss();
+
+  // prints "{ 0 1 2 3 }"
+  // prints "write to file"
+  // prints "close file"
+  // prints "custom defer"
 
   return 0;
 }

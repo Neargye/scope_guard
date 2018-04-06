@@ -26,8 +26,8 @@
 #include <fstream>
 
 int main() {
-  DEFER_TYPE custom_defer = scope_guard::MakeScopeExit([&]() noexcept { std::cout << "custom defer" << std::endl; });
-  DEFER_TYPE custom_defer_not_call = scope_guard::MakeScopeExit([&]() noexcept { std::cout << "not call" << std::endl; });
+  DEFER_TYPE custom_defer = MAKE_DEFER{ std::cout << "custom defer" << std::endl; };
+  DEFER_TYPE custom_defer_not_call = MAKE_DEFER{ std::cout << "not call" << std::endl; };
 
   std::cout << "{ ";
   for(int i = 0; i < 4; ++i)

@@ -1,5 +1,5 @@
 // scope_guard c++ https://github.com/Neargye/scope_guard
-// Vesion 0.2.0
+// Vesion 0.2.1
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
@@ -54,14 +54,13 @@ class ScopeExit final {
   }
 
   inline void Execute() noexcept {
-    if (!dismissed_)
-      action_();
-    dismissed_ = true;
+    action_();
   }
 
   inline ~ScopeExit() noexcept {
     if (!dismissed_)
       action_();
+    dismissed_ = true;
   }
 
  private:
@@ -69,24 +68,25 @@ class ScopeExit final {
   A action_;
 };
 
-template <typename A>
-using ScopeExitlDecay = ScopeExit<typename std::decay<A>::type>;
-
-template <typename A>
-inline ScopeExitlDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(ScopeExitlDecay<A>{static_cast<A&&>(action)})) {
-  return ScopeExitlDecay<A>{std::forward<A>(action)};
-}
-
 namespace detail {
+
+template <typename A>
+using ScopeExitDecay = ScopeExit<typename std::decay<A>::type>;
 
 struct ScopeExitTag {};
 
 template <typename A>
-inline ScopeExitlDecay<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExitlDecay<A>{static_cast<A&&>(action)})) {
-  return ScopeExitlDecay<A>{std::forward<A>(action)};
+inline ScopeExitDecay<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExitDecay<A>{static_cast<A&&>(action)})) {
+  return ScopeExitDecay<A>{std::forward<A>(action)};
 }
 
 } // namespace detail
+
+template <typename A>
+inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(detail::ScopeExitDecay<A>{static_cast<A&&>(action)})) {
+  return detail::ScopeExitDecay<A>{std::forward<A>(action)};
+}
+
 } // namespace scope_guard
 
 #if defined(__has_cpp_attribute)
@@ -108,12 +108,14 @@ inline ScopeExitlDecay<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(
 
 #define DEFER_TYPE SCOPE_GUARD_ATTRIBUTE_UNUSED auto
 
+#define MAKE_DEFER ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+
 #if defined(__COUNTER__)
 #define DEFER \
   SCOPE_GUARD_ATTRIBUTE_UNUSED const auto \
-  SCOPE_GUARD_CONCAT(__defer__object__, __COUNTER__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept
+  SCOPE_GUARD_CONCAT(__defer__object__, __COUNTER__) = MAKE_DEFER
 #elif defined(__LINE__)
 #define DEFER \
   SCOPE_GUARD_ATTRIBUTE_UNUSED const auto \
-  SCOPE_GUARD_CONCAT(__defer__object__, __LINE__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept
+  SCOPE_GUARD_CONCAT(__defer__object__, __LINE__) = MAKE_DEFER
 #endif

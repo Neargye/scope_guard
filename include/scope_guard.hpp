@@ -34,6 +34,7 @@ class ScopeExit final {
   ScopeExit() = delete;
   ScopeExit(const ScopeExit&) = delete;
   ScopeExit& operator=(const ScopeExit&) = delete;
+  ScopeExit& operator=(ScopeExit&&) = delete;
 
   inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
       : action_{std::move_if_noexcept(other.action_)} {

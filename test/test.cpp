@@ -76,17 +76,4 @@ TEST_CASE("DEFER") {
     }
     REQUIRE(counter == 1);
   }
-
-  SECTION("Execute") {
-    int counter = 0;
-    {
-      REQUIRE(counter == 0);
-      DEFER_TYPE custom_defer = MAKE_DEFER{counter++;};
-      counter++;
-      REQUIRE(counter == 1);
-      custom_defer.Execute();
-      REQUIRE(counter == 2);
-    }
-    REQUIRE(counter == 3);
-  }
 }

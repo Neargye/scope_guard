@@ -23,8 +23,8 @@
 // SOFTWARE.
 
 #pragma once
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 namespace scope_guard {
 
@@ -37,35 +37,32 @@ class ScopeExit final {
   ScopeExit& operator=(ScopeExit&&) = delete;
 
   inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
-      : action_{std::move_if_noexcept(other.action_)} {
-    dismissed_ = other.dismissed_;
-    other.dismissed_ = true;
+      : execute_{false},
+        action_{std::move_if_noexcept(other.action_)} {
+    execute_ = other.execute_;
+    other.execute_ = false;
   }
 
   inline explicit ScopeExit(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
-      : dismissed_{false},
+      : execute_{true},
         action_{std::move_if_noexcept(action)} {}
 
   inline explicit ScopeExit(const A& action) noexcept(std::is_nothrow_copy_constructible<A>::value)
-      : dismissed_{false},
+      : execute_{true},
         action_{action} {}
 
   inline void Dismiss() noexcept {
-    dismissed_ = true;
-  }
-
-  inline void Execute() noexcept {
-    action_();
+    execute_ = false;
   }
 
   inline ~ScopeExit() noexcept {
-    if (!dismissed_)
+    if (execute_)
       action_();
-    dismissed_ = true;
+    execute_ = false;
   }
 
  private:
-  bool dismissed_;
+  bool execute_;
   A action_;
 };
 

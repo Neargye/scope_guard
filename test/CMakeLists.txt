@@ -1,4 +1,5 @@
 ﻿include_directories(3rdparty/Catch2)
+include_directories(3rdparty/Trompeloeil)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_executable(${PROJECT_NAME}_test test.cpp)

@@ -24,121 +24,167 @@
 #define CATCH_CONFIG_MAIN
 #include <catch.hpp>
 
+#define TROMPELOEIL_SANITY_CHECKS
+#include <trompeloeil.hpp>
+
 #include <scope_guard.hpp>
+
 #include <cstddef>
 #include <fstream>
 #include <stdexcept>
 
-class ExecutionCounter {
-  std::size_t counter = 0;
-
-public:
-  void Execute() { ++counter; }
-
-  std::size_t GetCounter() const { return counter; }
+struct ExecutionCounter {
+  MAKE_MOCK0(Execute, void());
 };
 
 TEST_CASE("called on scope leave") {
   SECTION("DEFER") {
     ExecutionCounter m;
-    {
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(1));
+
+    REQUIRE_NOTHROW([&]() {
       DEFER{ m.Execute(); };
-    }
-    REQUIRE(m.GetCounter() == 1);
+    }());
   }
 
   SECTION("custom") {
     ExecutionCounter m;
-    {
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(1));
+
+    REQUIRE_NOTHROW([&]() {
       DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
-    }
-    REQUIRE(m.GetCounter() == 1);
+    }());
   }
 }
 
 TEST_CASE("called on exception") {
   SECTION("DEFER") {
     ExecutionCounter m;
-    {
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(1));
+
+    REQUIRE_THROWS([&]() {
       DEFER{ m.Execute(); };
-      REQUIRE_THROWS(throw std::exception{});
-    }
-    REQUIRE(m.GetCounter() == 1);
+
+      throw std::exception{};
+    }());
   }
 
   SECTION("custom") {
     ExecutionCounter m;
-    {
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(1));
+
+    REQUIRE_THROWS([&]() {
       DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
-      REQUIRE_THROWS(throw std::exception{});
-    }
-    REQUIRE(m.GetCounter() == 1);
+
+      throw std::exception{};
+    }());
   }
 }
 
 TEST_CASE("dismiss before scope leave") {
   ExecutionCounter m;
-  {
+  REQUIRE_CALL_V(m, Execute(),
+                 .TIMES(0));
+
+  REQUIRE_NOTHROW([&]() {
     DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
     custom_defer.Dismiss();
-  }
-  REQUIRE(m.GetCounter() == 0);
+  }());
 }
 
 TEST_CASE("dismiss before exception") {
   ExecutionCounter m;
-  {
+  REQUIRE_CALL_V(m, Execute(),
+                 .TIMES(0));
+
+  REQUIRE_THROWS([&]() {
     DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
     custom_defer.Dismiss();
-    REQUIRE_THROWS(throw std::exception{});
-  }
-  REQUIRE(m.GetCounter() == 0);
+
+    throw std::exception{};
+  }());
+}
+
+TEST_CASE("called on exception, dismiss after exception") {
+  ExecutionCounter m;
+  REQUIRE_CALL_V(m, Execute(),
+                 .TIMES(1));
+
+  REQUIRE_THROWS([&]() {
+    DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
+
+    throw std::exception{};
+
+    custom_defer.Dismiss();
+  }());
 }
 
 TEST_CASE("called on for") {
   ExecutionCounter m;
   static const std::size_t execute_times = 10;
+  REQUIRE_CALL_V(m, Execute(),
+                 .TIMES(execute_times));
+
   for (std::size_t i = 0; i < execute_times; ++i)
     DEFER{ m.Execute(); };
-  REQUIRE(m.GetCounter() == execute_times);
 }
 
 TEST_CASE("file") {
   SECTION("close on scope leave") {
     std::ofstream file;
     ExecutionCounter m;
-    {
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(1));
+
+    REQUIRE_NOTHROW([&]() {
       file.open("test.txt", std::fstream::out | std::ofstream::trunc);
       DEFER{
-        file.close();
-        m.Execute();
+        if (file.is_open()) {
+          file.close();
+          m.Execute();
+        }
       };
       file << "write to file" << std::endl;
-    }
+    }());
+
     REQUIRE(!file.is_open());
-    REQUIRE(m.GetCounter() == 1);
   }
 
   SECTION("close on exceptione") {
     std::ofstream file;
     ExecutionCounter m;
-    {
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(1));
+
+    REQUIRE_THROWS([&]() {
       file.open("test.txt", std::fstream::out | std::ofstream::trunc);
       DEFER{
-        file.close();
-        m.Execute();
+        if (file.is_open()) {
+          file.close();
+          m.Execute();
+        }
       };
       file << "write to file" << std::endl;
-      REQUIRE_THROWS(throw std::exception{});
-    }
+
+      throw std::exception{};
+
+      file.close();
+    }());
+
     REQUIRE(!file.is_open());
-    REQUIRE(m.GetCounter() == 1);
   }
 
-  SECTION("close if not") {
+  SECTION("close if not on scope leave") {
     std::ofstream file;
     ExecutionCounter m;
-    {
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(0));
+
+    REQUIRE_NOTHROW([&]() {
       file.open("test.txt", std::fstream::out | std::ofstream::trunc);
       DEFER{
         if (file.is_open()) {
@@ -148,8 +194,31 @@ TEST_CASE("file") {
       };
       file << "write to file" << std::endl;
       file.close();
-    }
+    }());
+
     REQUIRE(!file.is_open());
-    REQUIRE(m.GetCounter() == 0);
+  }
+
+  SECTION("close if not on exceptione") {
+    std::ofstream file;
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(0));
+
+    REQUIRE_THROWS([&]() {
+      file.open("test.txt", std::fstream::out | std::ofstream::trunc);
+      DEFER{
+        if (file.is_open()) {
+          file.close();
+          m.Execute();
+        }
+      };
+      file << "write to file" << std::endl;
+      file.close();
+
+      throw std::exception{};
+    }());
+
+    REQUIRE(!file.is_open());
   }
 }

@@ -22,6 +22,8 @@
 // SOFTWARE.
 
 #include <scope_guard.hpp>
+
+#include <cstddef>
 #include <iostream>
 #include <fstream>
 
@@ -30,7 +32,7 @@ int main() {
   DEFER_TYPE custom_defer_not_call = MAKE_DEFER{ std::cout << "not call" << std::endl; };
 
   std::cout << "{ ";
-  for(int i = 0; i < 4; ++i)
+  for (std::size_t i = 0; i < 4; ++i)
     DEFER{ std::cout << i << " "; };
   std::cout << "}" << std::endl;
 

@@ -1,5 +1,5 @@
 // scope_guard c++ https://github.com/Neargye/scope_guard
-// Vesion 0.2.1
+// vesion 0.2.2
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.

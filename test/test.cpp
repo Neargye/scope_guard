@@ -1,4 +1,4 @@
-// scope_guard c++11 test
+// scope_guard c++ test
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.

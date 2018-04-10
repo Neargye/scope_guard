@@ -1,52 +1,57 @@
-# scope_guard c++11
+# scope_guard c++
 
-C++ alternative to [defer](https://golang.org/ref/spec#Defer_statements) operator in [go](https://en.wikipedia.org/wiki/Go_(programming_language)).
+```text
+     _       __             _____
+    | |     / _|           / ____|_     _
+  __| | ___| |_ ___ _ __  | |   _| |_ _| |_
+ / _` |/ _ \  _/ _ \ '__| | |  |_   _|_   _|
+| (_| |  __/ ||  __/ |    | |____|_|   |_|
+ \__,_|\___|_| \___|_|     \_____|
+```
 
 Branch | Linux/OSX | Windows
 -------|-----------|---------
 master |[![Build Status](https://travis-ci.org/Neargye/scope_guard.svg?branch=master)](https://travis-ci.org/Neargye/scope_guard)|[![Build status](https://ci.appveyor.com/api/projects/status/yi394vgtwd0i2kco/branch/master?svg=true)](https://ci.appveyor.com/project/Neargye/scope-guard/branch/master)
 
+C++ alternative to [defer](https://golang.org/ref/spec#Defer_statements) operator in [go](https://en.wikipedia.org/wiki/Go_(programming_language)).
+
 ## Features
 
+* Simple syntax
 * C++11
 * Header-only
 * Dependency-free
 
-## Example
+## [Example](example/example.cpp) & Key Use Cases
 
 ```cpp
-#include <scope_guard.hpp>
-#include <iostream>
-#include <fstream>
-
-int main() {
-  DEFER_TYPE custom_defer = MAKE_DEFER{ std::cout << "custom defer" << std::endl; };
-  DEFER_TYPE custom_defer_not_call = MAKE_DEFER{ std::cout << "not call" << std::endl; };
-
-  std::cout << "{ ";
-  for(int i = 0; i < 4; ++i)
-    DEFER{ std::cout << i << " "; };
-  std::cout << "}" << std::endl;
-
-  std::ofstream file;
-  file.open("test.txt", std::fstream::out | std::ofstream::trunc);
-  DEFER{
-         file.close();
-         std::cout << "close file" << std::endl;
-        };
-
-  file << "example" << std::endl;
-  std::cout << "write to file" << std::endl;
-
-  custom_defer_not_call.Dismiss();
-
-  // prints "{ 0 1 2 3 }"
-  // prints "write to file"
-  // prints "close file"
-  // prints "custom defer"
-
-  return 0;
-}
+std::ofstream file("test.txt");
+DEFER{ file.close(); }; // File close when the enclosing scope exits.
 ```
 
-## License MIT
+```cpp
+bool commit = false;
+persons.push_back(person); // Add the person to db.
+DEFER{ // Following block is executed when the enclosing scope exits.
+  if(!commit)
+    persons.pop_back(); // If the db insertion that follows fails, we should rollback.
+};
+// ...
+commit = true; // An exception was not thrown, so don't execute the defer.
+```
+
+## Integration
+
+You need to add the single required file [scope_guard.hpp](include/scope_guard.hpp), and the necessary switches to enable C++11.
+
+## Compiler compatibility
+
+* GCC
+* Clang
+* MSVC
+
+## References
+
+[Andrei Alexandrescu “Declarative Control Flow"](https://github.com/CppCon/CppCon2015/blob/master/Presentations/Declarative%20Control%20Flow/Declarative%20Control%20Flow%20-%20Andrei%20Alexandrescu%20-%20CppCon%202015.pdf)
+
+## Licensed under the [MIT License](LICENSE)

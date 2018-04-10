@@ -1,4 +1,4 @@
-// scope_guard c++11 example
+// scope_guard c++ example
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.

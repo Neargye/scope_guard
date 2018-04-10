@@ -23,6 +23,7 @@
 // SOFTWARE.
 
 #pragma once
+
 #include <type_traits>
 #include <utility>
 
@@ -84,47 +85,41 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 
 } // namespace scope_guard
 
-#if defined(__GNUC__) || defined(__clang__)
-
 #if defined(__has_cpp_attribute)
-
-#if (__cplusplus >= 201703L) && __has_cpp_attribute(maybe_unused)
-#define SCOPE_GUARD_ATTRIBUTE_UNUSED [[maybe_unused]]
-#endif
-
-#endif
-
-#if !defined(SCOPE_GUARD_ATTRIBUTE_UNUSED)
-#define SCOPE_GUARD_ATTRIBUTE_UNUSED __attribute__((unused))
-#endif
-
-#elif defined(_MSC_VER)
-
-#if _MSC_VER >= 1911 && _HAS_CXX17
-#define SCOPE_GUARD_ATTRIBUTE_UNUSED [[maybe_unused]]
+#  define SCOPE_GUARD_CPP_HAS_ATTRIBUTE(x) __has_cpp_attribute(x)
 #else
-#define SCOPE_GUARD_ATTRIBUTE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
+#  define SCOPE_GUARD_CPP_HAS_ATTRIBUTE(x) 0
 #endif
 
+#if defined(_MSC_VER)
+#  if SCOPE_GUARD_CPP_HAS_ATTRIBUTE(maybe_unused) || (_MSC_VER >= 1911 && _HAS_CXX17)
+#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
+#  else
+#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
+#  endif
+#elif defined(__GNUC__) || defined(__clang__)
+#  if (__cplusplus >= 201703L) && SCOPE_GUARD_CPP_HAS_ATTRIBUTE(maybe_unused)
+#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
+#  else
+#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED __attribute__((unused))
+#  endif
+#else
+#  define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED
 #endif
 
-#if !defined(SCOPE_GUARD_ATTRIBUTE_UNUSED)
-#define SCOPE_GUARD_ATTRIBUTE_UNUSED
-#endif
+#define SCOPE_GUARD_STR_CONCAT_(s1, s2) s1##s2
+#define SCOPE_GUARD_STR_CONCAT(s1, s2) SCOPE_GUARD_STR_CONCAT_(s1, s2)
 
-#define SCOPE_GUARD_CONCAT_(s1, s2) s1##s2
-#define SCOPE_GUARD_CONCAT(s1, s2) SCOPE_GUARD_CONCAT_(s1, s2)
-
-#define DEFER_TYPE SCOPE_GUARD_ATTRIBUTE_UNUSED auto
+#define DEFER_TYPE SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED auto
 
 #define MAKE_DEFER ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 
 #if defined(__COUNTER__)
-#define DEFER \
-  SCOPE_GUARD_ATTRIBUTE_UNUSED const auto \
-  SCOPE_GUARD_CONCAT(__defer__object__, __COUNTER__) = MAKE_DEFER
+#  define DEFER \
+    SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
+    SCOPE_GUARD_STR_CONCAT(__defer__object__, __COUNTER__) = MAKE_DEFER
 #elif defined(__LINE__)
-#define DEFER \
-  SCOPE_GUARD_ATTRIBUTE_UNUSED const auto \
-  SCOPE_GUARD_CONCAT(__defer__object__, __LINE__) = MAKE_DEFER
+#  define DEFER \
+    SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
+    SCOPE_GUARD_STR_CONCAT(__defer__object__, __LINE__) = MAKE_DEFER
 #endif

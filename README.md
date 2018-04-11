@@ -24,20 +24,29 @@ C++ alternative to [defer](https://golang.org/ref/spec#Defer_statements) operato
 
 ## [Example](example/example.cpp) & Key Use Cases
 
-```cpp
-std::ofstream file("test.txt");
-DEFER{ file.close(); }; // File close when the enclosing scope exits.
-```
+* File close
 
 ```cpp
-bool commit = false;
+std::ofstream file("test.txt");
+DEFER{ file.close(); }; // File close when the enclosing scope exits or an error is thrown.
+```
+
+* Delete dynamic array
+
+```cpp
+int* dynamic_array = new int[10];
+DEFER{ delete[] dynamic_array; }; // Array delete when the enclosing scope exits or an error is thrown.
+```
+
+* Custom defer
+
+```cpp
 persons.push_back(person); // Add the person to db.
-DEFER{ // Following block is executed when the enclosing scope exits.
-  if(!commit)
-    persons.pop_back(); // If the db insertion that follows fails, we should rollback.
+MAKE_DEFER(custom_defer){ // Following block is executed when the enclosing scope exits or an error is thrown.
+  persons.pop_back(); // If the db insertion that follows fails, we should rollback.
 };
 // ...
-commit = true; // An exception was not thrown, so don't execute the defer.
+custom_defer.Dismiss(); // An exception was not thrown, so don't execute the defer.
 ```
 
 ## Integration
@@ -52,6 +61,8 @@ You need to add the single required file [scope_guard.hpp](include/scope_guard.h
 
 ## References
 
-[Andrei Alexandrescu “Declarative Control Flow"](https://github.com/CppCon/CppCon2015/blob/master/Presentations/Declarative%20Control%20Flow/Declarative%20Control%20Flow%20-%20Andrei%20Alexandrescu%20-%20CppCon%202015.pdf)
+[Andrei Alexandrescu "Systematic Error Handling in C++"](https://channel9.msdn.com/Shows/Going+Deep/C-and-Beyond-2012-Andrei-Alexandrescu-Systematic-Error-Handling-in-C)
+
+[Andrei Alexandrescu “Declarative Control Flow"](https://youtu.be/WjTrfoiB0MQ)
 
 ## Licensed under the [MIT License](LICENSE)

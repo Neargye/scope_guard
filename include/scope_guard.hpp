@@ -1,5 +1,5 @@
 // scope_guard c++ https://github.com/Neargye/scope_guard
-// vesion 0.2.2
+// vesion 0.2.3
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
@@ -110,16 +110,16 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 #define SCOPE_GUARD_STR_CONCAT_(s1, s2) s1##s2
 #define SCOPE_GUARD_STR_CONCAT(s1, s2) SCOPE_GUARD_STR_CONCAT_(s1, s2)
 
-#define DEFER_TYPE SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED auto
-
-#define MAKE_DEFER ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+#define MAKE_DEFER(defer_name) \
+  auto \
+  defer_name = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 
 #if defined(__COUNTER__)
 #  define DEFER \
     SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
-    SCOPE_GUARD_STR_CONCAT(__defer__object__, __COUNTER__) = MAKE_DEFER
+    SCOPE_GUARD_STR_CONCAT(__defer__object__, __COUNTER__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 #elif defined(__LINE__)
 #  define DEFER \
     SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
-    SCOPE_GUARD_STR_CONCAT(__defer__object__, __LINE__) = MAKE_DEFER
+    SCOPE_GUARD_STR_CONCAT(__defer__object__, __LINE__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 #endif

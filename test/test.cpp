@@ -54,7 +54,7 @@ TEST_CASE("called on scope leave") {
                    .TIMES(1));
 
     REQUIRE_NOTHROW([&]() {
-      DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
+      MAKE_DEFER(custom_defer){ m.Execute(); };
     }());
   }
 }
@@ -78,7 +78,7 @@ TEST_CASE("called on exception") {
                    .TIMES(1));
 
     REQUIRE_THROWS([&]() {
-      DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
+      MAKE_DEFER(custom_defer){ m.Execute(); };
 
       throw std::exception{};
     }());
@@ -91,7 +91,7 @@ TEST_CASE("dismiss before scope leave") {
                  .TIMES(0));
 
   REQUIRE_NOTHROW([&]() {
-    DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
+    MAKE_DEFER(custom_defer){ m.Execute(); };
     custom_defer.Dismiss();
   }());
 }
@@ -102,7 +102,7 @@ TEST_CASE("dismiss before exception") {
                  .TIMES(0));
 
   REQUIRE_THROWS([&]() {
-    DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
+    MAKE_DEFER(custom_defer){ m.Execute(); };
     custom_defer.Dismiss();
 
     throw std::exception{};
@@ -115,7 +115,7 @@ TEST_CASE("called on exception, dismiss after exception") {
                  .TIMES(1));
 
   REQUIRE_THROWS([&]() {
-    DEFER_TYPE custom_defer = MAKE_DEFER{ m.Execute(); };
+    MAKE_DEFER(custom_defer){ m.Execute(); };
 
     throw std::exception{};
 

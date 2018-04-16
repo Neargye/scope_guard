@@ -31,11 +31,6 @@ int main() {
   MAKE_DEFER(custom_defer){ std::cout << "custom defer" << std::endl; };
   MAKE_DEFER(custom_defer_not_call){ std::cout << "not call" << std::endl; };
 
-  std::cout << "{ ";
-  for (std::size_t i = 0; i < 4; ++i)
-    DEFER{ std::cout << i << " "; };
-  std::cout << "}" << std::endl;
-
   std::ofstream file;
   file.open("test.txt", std::fstream::out | std::ofstream::trunc);
   DEFER{
@@ -48,7 +43,6 @@ int main() {
 
   custom_defer_not_call.Dismiss();
 
-  // prints "{ 0 1 2 3 }"
   // prints "write to file"
   // prints "close file"
   // prints "custom defer"

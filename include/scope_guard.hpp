@@ -112,14 +112,17 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 
 #define MAKE_DEFER(defer_name) \
   auto \
-  defer_name = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+  defer_name = \
+  ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 
 #if defined(__COUNTER__)
 #  define DEFER \
     SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
-    SCOPE_GUARD_STR_CONCAT(__defer__object__, __COUNTER__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+    SCOPE_GUARD_STR_CONCAT(__defer__object__, __COUNTER__) = \
+    ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 #elif defined(__LINE__)
 #  define DEFER \
     SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
-    SCOPE_GUARD_STR_CONCAT(__defer__object__, __LINE__) = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+    SCOPE_GUARD_STR_CONCAT(__defer__object__, __LINE__) = \
+    ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 #endif

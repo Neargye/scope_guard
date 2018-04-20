@@ -37,15 +37,17 @@ class ScopeExit final {
   ScopeExit& operator=(const ScopeExit&) = delete;
   ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<A>::value || std::is_nothrow_copy_constructible<A>::value)
+  inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<A>::value ||
+                                               std::is_nothrow_copy_constructible<A>::value)
       : execute_{false},
         action_{std::move_if_noexcept(other.action_)} {
     execute_ = other.execute_;
     other.execute_ = false;
   }
 
-  template <class T, typename = typename std::enable_if<std::is_constructible<A, T>::value>::type>
-  inline explicit ScopeExit(T&& action) noexcept(std::is_nothrow_constructible<A, T>::value)
+  template <class T>
+  inline explicit ScopeExit(T&& action) noexcept(std::is_nothrow_constructible<A, T>::value ||
+                                                 std::is_nothrow_constructible<A, T&>::value)
       : execute_{true},
         action_{std::move_if_noexcept(action)} {}
 

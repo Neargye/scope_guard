@@ -15,6 +15,8 @@ master |[![Build Status](https://travis-ci.org/Neargye/scope_guard.svg?branch=ma
 
 C++ alternative to [defer](https://golang.org/ref/spec#Defer_statements) operator in [go](https://en.wikipedia.org/wiki/Go_(programming_language)).
 
+A "DEFER" statement invokes a function whose execution is deferred to the moment the surrounding function returns, either because the surrounding function executed a return statement, reached the end of its function body, or because the exception was thrown.
+
 ## Features
 
 * Simple syntax

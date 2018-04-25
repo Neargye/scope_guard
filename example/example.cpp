@@ -23,12 +23,15 @@
 
 #include <scope_guard.hpp>
 
-#include <cstddef>
 #include <iostream>
 #include <fstream>
 
+int Foo() {
+  return 42;
+}
+
 int main() {
-  MAKE_DEFER(custom_defer){ std::cout << "custom defer" << std::endl; };
+  MAKE_DEFER(custom_defer){ Foo(); std::cout << "custom defer" << std::endl; };
   MAKE_DEFER(custom_defer_not_call){ std::cout << "not call" << std::endl; };
 
   std::ofstream file;
@@ -36,7 +39,7 @@ int main() {
   DEFER{
          file.close();
          std::cout << "close file" << std::endl;
-        };
+  };
 
   file << "example" << std::endl;
   std::cout << "write to file" << std::endl;

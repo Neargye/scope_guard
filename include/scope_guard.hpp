@@ -1,5 +1,11 @@
-// scope_guard c++ https://github.com/Neargye/scope_guard
-// vesion 0.2.5
+//   _____                         _____                     _    _____
+//  / ____|                       / ____|                   | |  / ____|_     _
+// | (___   ___ ___  _ __   ___  | |  __ _   _  __ _ _ __ __| | | |   _| |_ _| |_
+//  \___ \ / __/ _ \| '_ \ / _ \ | | |_ | | | |/ _` | '__/ _` | | |  |_   _|_   _|
+//  ____) | (_| (_) | |_) |  __/ | |__| | |_| | (_| | | | (_| | | |____|_|   |_|
+// |_____/ \___\___/| .__/ \___|  \_____|\__,_|\__,_|_|  \__,_|  \_____|
+//                  | | https://github.com/Neargye/scope_guard
+//                  |_| vesion 0.2.5
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.

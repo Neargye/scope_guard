@@ -93,44 +93,54 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 
 } // namespace scope_guard
 
-#if defined(__has_cpp_attribute)
-#  define SCOPE_GUARD_CPP_HAS_ATTRIBUTE(x) __has_cpp_attribute(x)
-#else
-#  define SCOPE_GUARD_CPP_HAS_ATTRIBUTE(x) 0
+#if !defined(CPP_HAS_ATTRIBUTE)
+#  if defined(__has_cpp_attribute)
+#    define CPP_HAS_ATTRIBUTE(x) __has_cpp_attribute(x)
+#  else
+#    define CPP_HAS_ATTRIBUTE(x) 0
+#  endif
 #endif
 
-#if defined(_MSC_VER)
-#  if SCOPE_GUARD_CPP_HAS_ATTRIBUTE(maybe_unused) || (_MSC_VER >= 1911 && _HAS_CXX17)
-#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
+// CPP_ATTRIBUTE_UNUSED indicates that a function, variable or parameter might or might not be used.
+#if !defined(CPP_ATTRIBUTE_UNUSED)
+#  if defined(_MSC_VER)
+#    if CPP_HAS_ATTRIBUTE(maybe_unused) || (_MSC_VER >= 1911 && _HAS_CXX17)
+#      define CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
+#    else
+#      define CPP_ATTRIBUTE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
+#    endif
+#  elif defined(__GNUC__) || defined(__clang__)
+#    if (__cplusplus >= 201703L) && CPP_HAS_ATTRIBUTE(maybe_unused)
+#      define CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
+#    else
+#      define CPP_ATTRIBUTE_UNUSED __attribute__((unused))
+#    endif
 #  else
-#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
+#    define CPP_ATTRIBUTE_UNUSED
 #  endif
-#elif defined(__GNUC__) || defined(__clang__)
-#  if (__cplusplus >= 201703L) && SCOPE_GUARD_CPP_HAS_ATTRIBUTE(maybe_unused)
-#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
-#  else
-#    define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED __attribute__((unused))
-#  endif
-#else
-#  define SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED
 #endif
 
-#define SCOPE_GUARD_STR_CONCAT_(s1, s2) s1##s2
-#define SCOPE_GUARD_STR_CONCAT(s1, s2) SCOPE_GUARD_STR_CONCAT_(s1, s2)
+#if !defined(STR_CONCAT_)
+  #define STR_CONCAT_(s1, s2) s1##s2
+#endif
+
+#if !defined(STR_CONCAT)
+  #define STR_CONCAT(s1, s2) STR_CONCAT_(s1, s2)
+#endif
 
 #define MAKE_DEFER(defer_name) \
-  auto \
-  defer_name = \
+  auto                         \
+  defer_name =                 \
   ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 
 #if defined(__COUNTER__)
-#  define DEFER \
-    SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
-    SCOPE_GUARD_STR_CONCAT(__defer__object__, __COUNTER__) = \
+#  define DEFER                                  \
+    CPP_ATTRIBUTE_UNUSED const auto              \
+    STR_CONCAT(__defer__object__, __COUNTER__) = \
     ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 #elif defined(__LINE__)
-#  define DEFER \
-    SCOPE_GUARD_CPP_ATTRIBUTE_UNUSED const auto \
-    SCOPE_GUARD_STR_CONCAT(__defer__object__, __LINE__) = \
+#  define DEFER                               \
+    CPP_ATTRIBUTE_UNUSED const auto           \
+    STR_CONCAT(__defer__object__, __LINE__) = \
     ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 #endif

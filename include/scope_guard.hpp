@@ -121,11 +121,11 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 #endif
 
 #if !defined(STR_CONCAT_)
-  #define STR_CONCAT_(s1, s2) s1##s2
+#  define STR_CONCAT_(s1, s2) s1##s2
 #endif
 
 #if !defined(STR_CONCAT)
-  #define STR_CONCAT(s1, s2) STR_CONCAT_(s1, s2)
+#  define STR_CONCAT(s1, s2) STR_CONCAT_(s1, s2)
 #endif
 
 #define MAKE_DEFER(defer_name) \

@@ -1,4 +1,4 @@
-// scope_guard c++ test
+// scope_guard test
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
@@ -48,13 +48,37 @@ TEST_CASE("called on scope leave") {
     }());
   }
 
-  SECTION("custom") {
+  SECTION("custom defer") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(1));
 
     REQUIRE_NOTHROW([&]() {
       MAKE_DEFER(custom_defer){ m.Execute(); };
+    }());
+  }
+
+  SECTION("MULTIDEFER") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(3));
+
+    REQUIRE_NOTHROW([&]() {
+      DEFER{ m.Execute(); };
+      DEFER{ m.Execute(); };
+      DEFER{ m.Execute(); };
+    }());
+  }
+
+  SECTION("multi custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(3));
+
+    REQUIRE_NOTHROW([&]() {
+      MAKE_DEFER(custom_defer_1){ m.Execute(); };
+      MAKE_DEFER(custom_defer_2){ m.Execute(); };
+      MAKE_DEFER(custom_defer_3){ m.Execute(); };
     }());
   }
 }
@@ -72,7 +96,7 @@ TEST_CASE("called on exception") {
     }());
   }
 
-  SECTION("custom") {
+  SECTION("custom defer") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(1));
@@ -83,44 +107,127 @@ TEST_CASE("called on exception") {
       throw std::exception{};
     }());
   }
+
+  SECTION("MULTIDEFER") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(3));
+
+    REQUIRE_THROWS([&]() {
+      DEFER{ m.Execute(); };
+      DEFER{ m.Execute(); };
+      DEFER{ m.Execute(); };
+
+      throw std::exception{};
+    }());
+  }
+
+  SECTION("multi custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(3));
+
+    REQUIRE_THROWS([&]() {
+      MAKE_DEFER(custom_defer_1){ m.Execute(); };
+      MAKE_DEFER(custom_defer_2){ m.Execute(); };
+      MAKE_DEFER(custom_defer_3){ m.Execute(); };
+
+      throw std::exception{};
+    }());
+  }
 }
 
 TEST_CASE("dismiss before scope leave") {
-  ExecutionCounter m;
-  REQUIRE_CALL_V(m, Execute(),
-                 .TIMES(0));
+  SECTION("custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(0));
 
-  REQUIRE_NOTHROW([&]() {
-    MAKE_DEFER(custom_defer){ m.Execute(); };
-    custom_defer.Dismiss();
-  }());
+    REQUIRE_NOTHROW([&]() {
+      MAKE_DEFER(custom_defer){ m.Execute(); };
+      custom_defer.Dismiss();
+    }());
+  }
+
+  SECTION("multi custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(3));
+
+    REQUIRE_NOTHROW([&]() {
+      MAKE_DEFER(custom_defer_1){ m.Execute(); };
+      MAKE_DEFER(custom_defer_2){ m.Execute(); };
+      MAKE_DEFER(custom_defer_3){ m.Execute(); };
+    }());
+  }
 }
 
 TEST_CASE("dismiss before exception") {
-  ExecutionCounter m;
-  REQUIRE_CALL_V(m, Execute(),
-                 .TIMES(0));
+  SECTION("custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(0));
 
-  REQUIRE_THROWS([&]() {
-    MAKE_DEFER(custom_defer){ m.Execute(); };
-    custom_defer.Dismiss();
+    REQUIRE_THROWS([&]() {
+      MAKE_DEFER(custom_defer){ m.Execute(); };
 
-    throw std::exception{};
-  }());
+      custom_defer.Dismiss();
+
+      throw std::exception{};
+    }());
+  }
+
+  SECTION("multi custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(0));
+
+    REQUIRE_THROWS([&]() {
+      MAKE_DEFER(custom_defer_1){ m.Execute(); };
+      MAKE_DEFER(custom_defer_2){ m.Execute(); };
+      MAKE_DEFER(custom_defer_3){ m.Execute(); };
+
+      custom_defer_1.Dismiss();
+      custom_defer_2.Dismiss();
+      custom_defer_3.Dismiss();
+
+      throw std::exception{};
+    }());
+  }
 }
 
 TEST_CASE("called on exception, dismiss after exception") {
-  ExecutionCounter m;
-  REQUIRE_CALL_V(m, Execute(),
-                 .TIMES(1));
+  SECTION("custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(1));
 
-  REQUIRE_THROWS([&]() {
-    MAKE_DEFER(custom_defer){ m.Execute(); };
+    REQUIRE_THROWS([&]() {
+      MAKE_DEFER(custom_defer){ m.Execute(); };
 
-    throw std::exception{};
+      throw std::exception{};
 
-    custom_defer.Dismiss();
-  }());
+      custom_defer.Dismiss();
+    }());
+  }
+
+  SECTION("multi custom defer") {
+    ExecutionCounter m;
+    REQUIRE_CALL_V(m, Execute(),
+                   .TIMES(3));
+
+    REQUIRE_THROWS([&]() {
+      MAKE_DEFER(custom_defer_1){ m.Execute(); };
+      MAKE_DEFER(custom_defer_2){ m.Execute(); };
+      MAKE_DEFER(custom_defer_3){ m.Execute(); };
+
+      throw std::exception{};
+
+      custom_defer_1.Dismiss();
+      custom_defer_2.Dismiss();
+      custom_defer_3.Dismiss();
+    }());
+  }
 }
 
 TEST_CASE("called on for") {

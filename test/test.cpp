@@ -38,7 +38,7 @@ struct ExecutionCounter {
 };
 
 TEST_CASE("called on scope leave") {
-  SECTION("DEFER") {
+  SECTION("defer") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(1));
@@ -58,7 +58,7 @@ TEST_CASE("called on scope leave") {
     }());
   }
 
-  SECTION("MULTIDEFER") {
+  SECTION("multi defer") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(3));
@@ -84,7 +84,7 @@ TEST_CASE("called on scope leave") {
 }
 
 TEST_CASE("called on exception") {
-  SECTION("DEFER") {
+  SECTION("defer") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(1));
@@ -108,7 +108,7 @@ TEST_CASE("called on exception") {
     }());
   }
 
-  SECTION("MULTIDEFER") {
+  SECTION("multi defer") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(3));
@@ -240,9 +240,9 @@ TEST_CASE("called on for") {
     DEFER{ m.Execute(); };
 }
 
-TEST_CASE("file") {
+TEST_CASE("fstream") {
   SECTION("close on scope leave") {
-    std::ofstream file;
+    std::fstream file;
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(1));
@@ -262,7 +262,7 @@ TEST_CASE("file") {
   }
 
   SECTION("close on exceptione") {
-    std::ofstream file;
+    std::fstream file;
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(1));
@@ -286,7 +286,7 @@ TEST_CASE("file") {
   }
 
   SECTION("close if not on scope leave") {
-    std::ofstream file;
+    std::fstream file;
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(0));
@@ -307,7 +307,7 @@ TEST_CASE("file") {
   }
 
   SECTION("close if not on exceptione") {
-    std::ofstream file;
+    std::fstream file;
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(0));

@@ -43,19 +43,18 @@ class ScopeExit final {
   ScopeExit& operator=(const ScopeExit&) = delete;
   ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<A>::value ||
-                                               std::is_nothrow_copy_constructible<A>::value)
+  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(A{::std::move_if_noexcept(other.action_)}))
       : execute_{false},
-        action_{std::move_if_noexcept(other.action_)} {
+        action_{::std::move_if_noexcept(other.action_)} {
     execute_ = other.execute_;
     other.execute_ = false;
   }
 
-  template <class T>
-  inline explicit ScopeExit(T&& action) noexcept(std::is_nothrow_constructible<A, T>::value ||
-                                                 std::is_nothrow_constructible<A, T&>::value)
+  template <class T, typename = typename ::std::enable_if<::std::is_constructible<A, T>::value ||
+                                                          ::std::is_constructible<A, T&>::value>::type>
+  inline explicit ScopeExit(T&& action) noexcept(noexcept(A{::std::move_if_noexcept(action)}))
       : execute_{true},
-        action_{std::move_if_noexcept(action)} {}
+        action_{::std::move_if_noexcept(action)} {}
 
   inline void Dismiss() noexcept {
     execute_ = false;
@@ -75,20 +74,20 @@ class ScopeExit final {
 namespace detail {
 
 template <typename A>
-using ScopeExitDecay = ScopeExit<typename std::decay<A>::type>;
+using ScopeExitDecay = ScopeExit<typename ::std::decay<A>::type>;
 
 struct ScopeExitTag {};
 
 template <typename A>
 inline ScopeExitDecay<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExitDecay<A>{static_cast<A&&>(action)})) {
-  return ScopeExitDecay<A>{std::forward<A>(action)};
+  return ScopeExitDecay<A>{::std::forward<A>(action)};
 }
 
 } // namespace detail
 
 template <typename A>
 inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(detail::ScopeExitDecay<A>{static_cast<A&&>(action)})) {
-  return detail::ScopeExitDecay<A>{std::forward<A>(action)};
+  return detail::ScopeExitDecay<A>{::std::forward<A>(action)};
 }
 
 } // namespace scope_guard

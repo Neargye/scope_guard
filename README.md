@@ -17,7 +17,7 @@ master |[![Build Status](https://travis-ci.org/Neargye/scope_guard.svg?branch=ma
 
 C++ alternative to [defer](https://golang.org/ref/spec#Defer_statements) operator in [go](https://en.wikipedia.org/wiki/Go_(programming_language)).
 
-A "DEFER" statement invokes a function whose execution is deferred to the moment the surrounding function returns, either because the surrounding function executed a return statement, reached the end of its function body, or because the exception was thrown.
+A "DEFER" statement invokes a function whose execution is deferred to the moment the surrounding function returns because the surrounding function executed return statement, or it reached the end of its function body, or errors occure.
 
 ## Features
 
@@ -26,28 +26,28 @@ A "DEFER" statement invokes a function whose execution is deferred to the moment
 * Header-only
 * Dependency-free
 
-## [Example](example/example.cpp) & Key Use Cases
+## [Examples](example/example.cpp)
 
 * File close
 
 ```cpp
 std::ofstream file("test.txt");
-DEFER{ file.close(); }; // File close when the enclosing scope exits or an error is thrown.
+DEFER{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
 ```
 
 * Delete dynamic array
 
 ```cpp
 int* dynamic_array = new int[10];
-DEFER{ delete[] dynamic_array; }; // Array delete when the enclosing scope exits or an error is thrown.
+DEFER{ delete[] dynamic_array; }; // Array delete when exit the enclosing scope or errors occure.
 ```
 
 * Custom defer
 
 ```cpp
 persons.push_back(person); // Add the person to db.
-MAKE_DEFER(custom_defer){ // Following block is executed when the enclosing scope exits or an error is thrown.
-  persons.pop_back(); // If the db insertion that follows fails, we should rollback.
+MAKE_DEFER(custom_defer){ // Following block is executed when exit the enclosing scope or errors occure.
+  persons.pop_back(); // If the db insertion fails, we should roll back.
 };
 // ...
 custom_defer.Dismiss(); // An exception was not thrown, so don't execute the defer.
@@ -55,7 +55,7 @@ custom_defer.Dismiss(); // An exception was not thrown, so don't execute the def
 
 ## Integration
 
-You need to add the single required file [scope_guard.hpp](include/scope_guard.hpp), and the necessary switches to enable C++11.
+You should add required file [scope_guard.hpp](include/scope_guard.hpp) and switch to C++11
 
 ## Compiler compatibility
 

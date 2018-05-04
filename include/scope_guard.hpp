@@ -103,7 +103,7 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 // CPP_ATTRIBUTE_UNUSED indicates that a function, variable or parameter might or might not be used.
 #if !defined(CPP_ATTRIBUTE_UNUSED)
 #  if defined(_MSC_VER)
-#    if CPP_HAS_ATTRIBUTE(maybe_unused) || (_MSC_VER >= 1911 && _HAS_CXX17)
+#    if CPP_HAS_ATTRIBUTE(maybe_unused) || (_MSC_VER >= 1911 && _MSVC_LANG >= 201703L)
 #      define CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
 #    else
 #      define CPP_ATTRIBUTE_UNUSED __pragma(warning(suppress : 4100 4101 4189))

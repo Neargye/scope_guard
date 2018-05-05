@@ -37,6 +37,8 @@ namespace scope_guard {
 
 template <typename A>
 class ScopeExit final {
+  static_assert(std::is_function<A()>::value, "ScopeExit requirement function");
+
  public:
   ScopeExit() = delete;
   ScopeExit(const ScopeExit&) = delete;

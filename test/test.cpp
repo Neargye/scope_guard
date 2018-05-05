@@ -248,7 +248,7 @@ TEST_CASE("fstream") {
                    .TIMES(1));
 
     REQUIRE_NOTHROW([&]() {
-      file.open("test.txt", std::fstream::out | std::ofstream::trunc);
+      file.open("test.txt", std::fstream::out | std::fstream::trunc);
       DEFER{
         if (file.is_open()) {
           file.close();
@@ -268,7 +268,7 @@ TEST_CASE("fstream") {
                    .TIMES(1));
 
     REQUIRE_THROWS([&]() {
-      file.open("test.txt", std::fstream::out | std::ofstream::trunc);
+      file.open("test.txt", std::fstream::out | std::fstream::trunc);
       DEFER{
         if (file.is_open()) {
           file.close();
@@ -292,7 +292,7 @@ TEST_CASE("fstream") {
                    .TIMES(0));
 
     REQUIRE_NOTHROW([&]() {
-      file.open("test.txt", std::fstream::out | std::ofstream::trunc);
+      file.open("test.txt", std::fstream::out | std::fstream::trunc);
       DEFER{
         if (file.is_open()) {
           file.close();
@@ -313,7 +313,7 @@ TEST_CASE("fstream") {
                    .TIMES(0));
 
     REQUIRE_THROWS([&]() {
-      file.open("test.txt", std::fstream::out | std::ofstream::trunc);
+      file.open("test.txt", std::fstream::out | std::fstream::trunc);
       DEFER{
         if (file.is_open()) {
           file.close();

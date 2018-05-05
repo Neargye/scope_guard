@@ -34,8 +34,8 @@ int main() {
   MAKE_DEFER(custom_defer){ Foo(); std::cout << "custom defer" << std::endl; };
   MAKE_DEFER(custom_defer_not_call){ std::cout << "not call" << std::endl; };
 
-  std::ofstream file;
-  file.open("test.txt", std::fstream::out | std::ofstream::trunc);
+  std::fstream file;
+  file.open("test.txt", std::fstream::out | std::fstream::trunc);
   DEFER{
          file.close();
          std::cout << "close file" << std::endl;

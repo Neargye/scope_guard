@@ -31,7 +31,7 @@ A "DEFER" statement invokes a function whose execution is deferred to the moment
 * File close
 
 ```cpp
-std::ofstream file("test.txt");
+std::fstream file("test.txt");
 DEFER{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
 ```
 

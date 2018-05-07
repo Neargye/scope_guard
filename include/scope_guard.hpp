@@ -46,18 +46,18 @@ class ScopeExit final {
   ScopeExit& operator=(const ScopeExit&) = delete;
   ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(A{::std::move_if_noexcept(other.action_)}))
+  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(A{::std::forward<A>(other.action_)}))
       : execute_{false},
-        action_{::std::move_if_noexcept(other.action_)} {
+        action_{::std::forward<A>(other.action_)} {
     execute_ = other.execute_;
     other.execute_ = false;
   }
 
   template <class T, typename = typename ::std::enable_if<::std::is_constructible<A, T>::value ||
                                                           ::std::is_constructible<A, T&>::value>::type>
-  inline explicit ScopeExit(T&& action) noexcept(noexcept(A{::std::move_if_noexcept(action)}))
+  inline explicit ScopeExit(T&& action) noexcept(noexcept(A{::std::forward<T>(action)}))
       : execute_{true},
-        action_{::std::move_if_noexcept(action)} {}
+        action_{::std::forward<T>(action)} {}
 
   inline void Dismiss() noexcept {
     execute_ = false;

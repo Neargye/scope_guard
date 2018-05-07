@@ -37,7 +37,8 @@ namespace scope_guard {
 
 template <typename A>
 class ScopeExit final {
-  static_assert(std::is_function<A()>::value, "ScopeExit requirement function");
+  static_assert(::std::is_same<void, decltype((::std::declval<A>())())>::value,
+                "ScopeExit requirement no-argument callable returns void");
 
  public:
   ScopeExit() = delete;

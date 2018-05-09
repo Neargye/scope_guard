@@ -15,9 +15,13 @@ Branch | Linux/OSX | Windows | License | Codacy
 -------|-----------|---------|---------|-------
 master |[![Build Status](https://travis-ci.org/Neargye/scope_guard.svg?branch=master)](https://travis-ci.org/Neargye/scope_guard)|[![Build status](https://ci.appveyor.com/api/projects/status/yi394vgtwd0i2kco/branch/master?svg=true)](https://ci.appveyor.com/project/Neargye/scope-guard/branch/master)|[![License](https://img.shields.io/github/license/Neargye/scope_guard.svg)](LICENSE)|[![Codacy Badge](https://api.codacy.com/project/badge/Grade/f5aa0553701f4f84bd51f2efda879972)](https://www.codacy.com/app/Neargye/scope_guard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Neargye/scope_guard&amp;utm_campaign=Badge_Grade)
 
-C++ alternative to [defer](https://golang.org/ref/spec#Defer_statements) operator in [go](https://en.wikipedia.org/wiki/Go_(programming_language)).
+Scope Guard statement invokes a function with deferred execution until surrounding function returns in cases:
 
-A "DEFER" statement invokes a function whose execution is deferred to the moment the surrounding function returns because the surrounding function executed return statement, or it reached the end of its function body, or errors occure.
+* Surrounding function executed return statemeent
+* This function reached the end of its body
+* Erros occure
+
+Program control transferring does not influence Scope Guard statement execution. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occure.
 
 ## Features
 
@@ -25,32 +29,62 @@ A "DEFER" statement invokes a function whose execution is deferred to the moment
 * C++11
 * Header-only
 * Dependency-free
+* Thin callback wrapping: no added std::function or virtual table penalties
+* No implicitly ignored return, check callback return void
+* Defer or Scope Guard syntax
 
 ## [Examples](example/example.cpp)
 
-* File close
+* Scope Guard syntax
+
+```cpp
+std::fstream file("test.txt");
+SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
+```
+
+* Custom Scope Guard
+
+```cpp
+persons.push_back(person); // Add the person to db.
+MAKE_SCOPE_EXIT(scope_exit){ // Following block is executed when exit the enclosing scope or errors occure.
+  persons.pop_back(); // If the db insertion fails, we should roll back.
+};
+// ...
+scope_exit.Dismiss(); // An exception was not thrown, so don't execute the scope_exit.
+```
+
+* Defer syntax
 
 ```cpp
 std::fstream file("test.txt");
 DEFER{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
 ```
 
-* Delete dynamic array
-
-```cpp
-int* dynamic_array = new int[10];
-DEFER{ delete[] dynamic_array; }; // Array delete when exit the enclosing scope or errors occure.
-```
-
-* Custom defer
+* Custom Defer
 
 ```cpp
 persons.push_back(person); // Add the person to db.
-MAKE_DEFER(custom_defer){ // Following block is executed when exit the enclosing scope or errors occure.
+MAKE_DEFER(defer){ // Following block is executed when exit the enclosing scope or errors occure.
   persons.pop_back(); // If the db insertion fails, we should roll back.
 };
 // ...
-custom_defer.Dismiss(); // An exception was not thrown, so don't execute the defer.
+defer.Dismiss(); // An exception was not thrown, so don't execute the defer.
+```
+
+## Remarks
+
+* If multiple Scope Guard statements appear in the same scope, the order they appear is the reverse of the order they are executed.
+
+```cpp
+void f() {
+  SCOPE_EXIT{ std::cout << "First" << std::endl; };
+  SCOPE_EXIT{ std::cout << "Second" << std::endl; };
+  SCOPE_EXIT{ std::cout << "Third" << std::endl; };
+  ... // Other code.
+  // Prints "Third".
+  // Prints "Second".
+  // Prints "First".
+}
 ```
 
 ## Integration

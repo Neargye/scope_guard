@@ -46,9 +46,9 @@ class ScopeExit final {
   ScopeExit& operator=(const ScopeExit&) = delete;
   ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(A{::std::forward<A>(other.action_)}))
+  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(A{::std::move(other.action_)}))
       : execute_{false},
-        action_{::std::forward<A>(other.action_)} {
+        action_{::std::move(other.action_)} {
     execute_ = other.execute_;
     other.execute_ = false;
   }

@@ -131,21 +131,18 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 #endif
 
 #define MAKE_SCOPE_EXIT(name) \
-  auto                        \
-  name =                      \
-  ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+  auto name = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept->void
 
 #if defined(__COUNTER__)
-#  define SCOPE_EXIT                                  \
-    CPP_ATTRIBUTE_UNUSED const auto                   \
-    STR_CONCAT(__scope_exit__object__, __COUNTER__) = \
-    ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+#  define SCOPE_EXIT           \
+    CPP_ATTRIBUTE_UNUSED const \
+    MAKE_SCOPE_EXIT(STR_CONCAT(__scope_exit__object__, __COUNTER__))
 #elif defined(__LINE__)
-#  define SCOPE_EXIT                               \
-    CPP_ATTRIBUTE_UNUSED const auto                \
-    STR_CONCAT(__scope_exit__object__, __LINE__) = \
-    ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+#  define SCOPE_EXIT           \
+    CPP_ATTRIBUTE_UNUSED const \
+    MAKE_SCOPE_EXIT(STR_CONCAT(__scope_exit__object__, __LINE__))
 #endif
 
 #define DEFER SCOPE_EXIT
+
 #define MAKE_DEFER(name) MAKE_SCOPE_EXIT(name)

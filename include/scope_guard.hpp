@@ -64,9 +64,10 @@ class ScopeExit final {
   }
 
   inline ~ScopeExit() noexcept {
-    if (execute_)
+    if (execute_) {
       action_();
-    execute_ = false;
+      execute_ = false;
+    }
   }
 
  private:
@@ -82,14 +83,16 @@ using ScopeExitDecay = ScopeExit<typename ::std::decay<A>::type>;
 struct ScopeExitTag {};
 
 template <typename A>
-inline ScopeExitDecay<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExitDecay<A>{static_cast<A&&>(action)})) {
+inline ScopeExitDecay<A> operator+(ScopeExitTag, A&& action)
+    noexcept(noexcept(ScopeExitDecay<A>{::std::forward<A>(action)})) {
   return ScopeExitDecay<A>{::std::forward<A>(action)};
 }
 
 } // namespace detail
 
 template <typename A>
-inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(detail::ScopeExitDecay<A>{static_cast<A&&>(action)})) {
+inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action)
+    noexcept(noexcept(detail::ScopeExitDecay<A>{::std::forward<A>(action)})) {
   return detail::ScopeExitDecay<A>{::std::forward<A>(action)};
 }
 
@@ -131,7 +134,7 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action) noexcept(noexcept(det
 #endif
 
 #define MAKE_SCOPE_EXIT(name) \
-  auto name = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept->void
+  auto name = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 
 #if defined(__COUNTER__)
 #  define SCOPE_EXIT           \

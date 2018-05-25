@@ -98,30 +98,28 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action)
 
 } // namespace scope_guard
 
-#if !defined(CPP_HAS_ATTRIBUTE)
-#  if defined(__has_cpp_attribute)
-#    define CPP_HAS_ATTRIBUTE(x) __has_cpp_attribute(x)
-#  else
-#    define CPP_HAS_ATTRIBUTE(x) 0
-#  endif
-#endif
-
-// CPP_ATTRIBUTE_UNUSED indicates that a function, variable or parameter might or might not be used.
-#if !defined(CPP_ATTRIBUTE_UNUSED)
+// CPP_ATTRIBUTE_MAYBE_UNUSED indicates that a function, variable or parameter might or might not be used.
+#if !defined(CPP_ATTRIBUTE_MAYBE_UNUSED)
 #  if defined(_MSC_VER)
-#    if CPP_HAS_ATTRIBUTE(maybe_unused) || (_MSC_VER >= 1911 && _MSVC_LANG >= 201703L)
-#      define CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
+#    if (_MSC_VER >= 1911 && _MSVC_LANG >= 201703L)
+#      define CPP_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
 #    else
-#      define CPP_ATTRIBUTE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
+#      define CPP_ATTRIBUTE_MAYBE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
 #    endif
-#  elif defined(__GNUC__) || defined(__clang__)
-#    if (__cplusplus >= 201703L) && CPP_HAS_ATTRIBUTE(maybe_unused)
-#      define CPP_ATTRIBUTE_UNUSED [[maybe_unused]]
+#  elif defined(__clang__)
+#    if ((__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 9)) && __cplusplus >= 201703L)
+#      define CPP_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
 #    else
-#      define CPP_ATTRIBUTE_UNUSED __attribute__((unused))
+#      define CPP_ATTRIBUTE_MAYBE_UNUSED __attribute__((__unused__))
+#    endif
+#  elif defined(__GNUC__)
+#    if (__GNUC__ > 7 && __cplusplus >= 201703L)
+#      define CPP_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
+#    else
+#      define CPP_ATTRIBUTE_MAYBE_UNUSED __attribute__((__unused__))
 #    endif
 #  else
-#    define CPP_ATTRIBUTE_UNUSED
+#    define CPP_ATTRIBUTE_MAYBE_UNUSED
 #  endif
 #endif
 
@@ -137,12 +135,12 @@ inline detail::ScopeExitDecay<A> MakeScopeExit(A&& action)
   auto name = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
 
 #if defined(__COUNTER__)
-#  define SCOPE_EXIT           \
-    CPP_ATTRIBUTE_UNUSED const \
+#  define SCOPE_EXIT                 \
+    CPP_ATTRIBUTE_MAYBE_UNUSED const \
     MAKE_SCOPE_EXIT(STR_CONCAT(__scope_exit__object__, __COUNTER__))
 #elif defined(__LINE__)
-#  define SCOPE_EXIT           \
-    CPP_ATTRIBUTE_UNUSED const \
+#  define SCOPE_EXIT                 \
+    CPP_ATTRIBUTE_MAYBE_UNUSED const \
     MAKE_SCOPE_EXIT(STR_CONCAT(__scope_exit__object__, __LINE__))
 #endif
 

@@ -26,29 +26,33 @@
 #include <iostream>
 #include <fstream>
 
-int Foo() {
-  return 42;
-}
+int Foo() { return 42; }
 
 int main() {
-  MAKE_DEFER(custom_defer){ Foo(); std::cout << "custom defer" << std::endl; };
-  MAKE_DEFER(custom_defer_not_call){ std::cout << "not call" << std::endl; };
+  MAKE_DEFER(custom_defer1) {
+    Foo();
+    std::cout << "custom defer 1" << std::endl;
+  };
+  auto custom_defer2 = scope_guard::MakeScopeExit([&]() {
+    std::cout << "custom defer 2" << std::endl;
+    Foo();
+  });
 
   std::fstream file;
   file.open("test.txt", std::fstream::out | std::fstream::trunc);
-  DEFER{
-         file.close();
-         std::cout << "close file" << std::endl;
+  DEFER {
+    file.close();
+    std::cout << "close file" << std::endl;
   };
 
   file << "example" << std::endl;
   std::cout << "write to file" << std::endl;
 
-  custom_defer_not_call.Dismiss();
+  custom_defer1.Dismiss();
+  custom_defer2.Dismiss();
 
   // prints "write to file"
   // prints "close file"
-  // prints "custom defer"
 
   return 0;
 }

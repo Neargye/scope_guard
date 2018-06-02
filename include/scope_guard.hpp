@@ -37,6 +37,8 @@ namespace scope_guard {
 
 template <typename A>
 class ScopeExit final {
+  using F = typename std::decay<A>::type;
+
   static_assert(std::is_same<void, decltype((std::declval<A>())())>::value,
                 "ScopeExit requirement no-argument callable returns void");
 
@@ -46,16 +48,16 @@ class ScopeExit final {
   ScopeExit& operator=(const ScopeExit&) = delete;
   ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(A{std::move(other.action_)}))
+  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(F{std::move(other.action_)}))
       : execute_{false},
         action_{std::move(other.action_)} {
     execute_ = other.execute_;
     other.execute_ = false;
   }
 
-  template <class T, typename = typename std::enable_if<std::is_constructible<A, T>::value ||
-                                                        std::is_constructible<A, T&>::value>::type>
-  inline explicit ScopeExit(T&& action) noexcept(noexcept(A{std::forward<T>(action)}))
+  template <class T, typename = typename std::enable_if<std::is_constructible<F, T>::value ||
+                                                        std::is_constructible<F, T&>::value>::type>
+  inline explicit ScopeExit(T&& action) noexcept(noexcept(F{std::forward<T>(action)}))
       : execute_{true},
         action_{std::forward<T>(action)} {}
 
@@ -72,23 +74,23 @@ class ScopeExit final {
 
  private:
   bool execute_;
-  A action_;
+  F action_;
 };
 
 namespace detail {
 
 struct ScopeExitTag {};
 
-template <typename A, typename D = typename std::decay<A>::type>
-inline ScopeExit<D> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExit<D>{std::forward<A>(action)})) {
-  return ScopeExit<D>{std::forward<A>(action)};
+template <typename A>
+inline ScopeExit<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExit<A>{std::forward<A>(action)})) {
+  return ScopeExit<A>{std::forward<A>(action)};
 }
 
 } // namespace detail
 
-template <typename A, typename D = typename std::decay<A>::type>
-inline ScopeExit<D> MakeScopeExit(A&& action) noexcept(noexcept(ScopeExit<D>{std::forward<A>(action)})) {
-  return ScopeExit<D>{std::forward<A>(action)};
+template <typename A>
+inline ScopeExit<A> MakeScopeExit(A&& action) noexcept(noexcept(ScopeExit<A>{std::forward<A>(action)})) {
+  return ScopeExit<A>{std::forward<A>(action)};
 }
 
 } // namespace scope_guard

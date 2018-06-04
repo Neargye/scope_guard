@@ -48,18 +48,19 @@ class ScopeExit final {
   ScopeExit& operator=(const ScopeExit&) = delete;
   ScopeExit& operator=(ScopeExit&&) = delete;
 
-  inline ScopeExit(ScopeExit&& other) noexcept(noexcept(F{std::move(other.action_)}))
-      : execute_{false},
-        action_{std::move(other.action_)} {
+  inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<F>::value)
+      : execute_(false),
+        action_(std::move(other.action_)) {
     execute_ = other.execute_;
     other.execute_ = false;
   }
 
   template <class T, typename = typename std::enable_if<std::is_constructible<F, T>::value ||
                                                         std::is_constructible<F, T&>::value>::type>
-  inline explicit ScopeExit(T&& action) noexcept(noexcept(F{std::forward<T>(action)}))
-      : execute_{true},
-        action_{std::forward<T>(action)} {}
+  inline explicit ScopeExit(T&& action) noexcept(std::is_nothrow_constructible<F, T>::value ||
+                                                 std::is_nothrow_constructible<F, T&>::value)
+      : execute_(true),
+        action_(std::forward<T>(action)) {}
 
   inline void Dismiss() noexcept {
     execute_ = false;
@@ -82,15 +83,15 @@ namespace detail {
 struct ScopeExitTag {};
 
 template <typename A>
-inline ScopeExit<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExit<A>{std::forward<A>(action)})) {
-  return ScopeExit<A>{std::forward<A>(action)};
+inline ScopeExit<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExit<A>(std::forward<A>(action)))) {
+  return ScopeExit<A>(std::forward<A>(action));
 }
 
 } // namespace detail
 
 template <typename A>
-inline ScopeExit<A> MakeScopeExit(A&& action) noexcept(noexcept(ScopeExit<A>{std::forward<A>(action)})) {
-  return ScopeExit<A>{std::forward<A>(action)};
+inline ScopeExit<A> MakeScopeExit(A&& action) noexcept(noexcept(ScopeExit<A>(std::forward<A>(action)))) {
+  return ScopeExit<A>(std::forward<A>(action));
 }
 
 } // namespace scope_guard

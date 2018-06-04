@@ -28,25 +28,7 @@
 
 int Foo() { return 42; }
 
-class F {
- public:
-  void operator() () { std::cout << "F::operator()" << std::endl; }
-};
-
 int main() {
-  MAKE_DEFER(custom_defer1) {
-    Foo();
-    std::cout << "custom defer 1" << std::endl;
-  };
-
-  auto custom_defer2 = scope_guard::MakeScopeExit([&]() {
-    std::cout << "custom defer 2" << std::endl;
-    Foo();
-  });
-
-  F f;
-  scope_guard::ScopeExit<decltype(f)> custom_defer3{f};
-
   std::fstream file;
   file.open("test.txt", std::fstream::out | std::fstream::trunc);
   DEFER {
@@ -54,12 +36,21 @@ int main() {
     std::cout << "close file" << std::endl;
   };
 
+  MAKE_DEFER(custom_defer1) {
+    int a = Foo();
+    std::cout << "custom defer 1" << std::endl;
+  };
+
+  auto custom_defer2 = scope_guard::MakeScopeExit([&]() {
+    std::cout << "custom defer 2" << std::endl;
+    int b = Foo();
+  });
+
   file << "example" << std::endl;
   std::cout << "write to file" << std::endl;
 
   custom_defer1.Dismiss();
   custom_defer2.Dismiss();
-  custom_defer3.Dismiss();
 
   // prints "write to file"
   // prints "close file"

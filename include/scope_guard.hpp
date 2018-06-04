@@ -41,8 +41,6 @@ class ScopeExit final {
 
   static_assert(std::is_same<void, decltype((std::declval<A>())())>::value,
                 "ScopeExit requirement no-argument callable returns void");
-  static_assert(std::is_move_constructible<F>::value,
-                "ScopeExit requirement move constructible.");
 
  public:
   ScopeExit() = delete;
@@ -57,8 +55,8 @@ class ScopeExit final {
     other.execute_ = false;
   }
 
-  template <class T, typename = typename std::enable_if<std::is_constructible<F, T>::value ||
-                                                        std::is_constructible<F, T&>::value>::type>
+  template <typename T, typename = typename std::enable_if<std::is_constructible<F, T>::value ||
+                                                           std::is_constructible<F, T&>::value>::type>
   inline explicit ScopeExit(T&& action) noexcept(std::is_nothrow_constructible<F, T>::value ||
                                                  std::is_nothrow_constructible<F, T&>::value)
       : execute_(true),

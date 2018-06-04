@@ -51,7 +51,7 @@ class ScopeExit final {
   inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<F>::value)
       : execute_(false),
         action_(std::move(other.action_)) {
-    execute_ = other.execute_;
+    execute_ = std::move(other.execute_);
     other.execute_ = false;
   }
 

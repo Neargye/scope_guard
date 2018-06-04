@@ -41,6 +41,8 @@ class ScopeExit final {
 
   static_assert(std::is_same<void, decltype((std::declval<A>())())>::value,
                 "ScopeExit requirement no-argument callable returns void");
+  static_assert(std::is_move_constructible<F>::value,
+                "ScopeExit requirement move constructible.");
 
  public:
   ScopeExit() = delete;

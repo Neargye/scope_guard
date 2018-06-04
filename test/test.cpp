@@ -37,6 +37,57 @@ struct ExecutionCounter {
   MAKE_MOCK0(Execute, void());
 };
 
+class F {
+public:
+  F() = default;
+  F(F&&) = default;
+  F(const F&) = default;
+  ~F() = default;
+  F& operator=(const F&) = default;
+  F& operator=(F&&) = default;
+
+  void operator() () {}
+};
+
+void Foo() {}
+
+TEST_CASE("compilation") {
+  SECTION("function") {
+    DEFER{ Foo(); };
+    MAKE_DEFER(custom_defer1) { Foo(); };
+
+    auto custom_defer2 = scope_guard::MakeScopeExit(Foo);
+    static_assert(noexcept(scope_guard::MakeScopeExit(Foo)), "");
+
+    scope_guard::ScopeExit<decltype(Foo)> custom_defer3{Foo};
+    static_assert(noexcept(scope_guard::ScopeExit<decltype(Foo)>{Foo}), "");
+  }
+
+  SECTION("class") {
+    F f;
+    DEFER{ f(); };
+    MAKE_DEFER(custom_defer1) { f(); };
+
+    auto custom_defer2 = scope_guard::MakeScopeExit(f);
+    static_assert(noexcept(scope_guard::MakeScopeExit(f)), "");
+
+    scope_guard::ScopeExit<decltype(f)> custom_defer3{f};
+    static_assert(noexcept(scope_guard::ScopeExit<decltype(f)>{f}), "");
+  }
+
+  SECTION("lambda") {
+    auto SomeLambda = [&]() {};
+    DEFER{ SomeLambda(); };
+    MAKE_DEFER(custom_defer1) { SomeLambda(); };
+
+    auto custom_defer2 = scope_guard::MakeScopeExit(SomeLambda);
+    static_assert(noexcept(scope_guard::MakeScopeExit(SomeLambda)), "");
+
+    scope_guard::ScopeExit<decltype(SomeLambda)> custom_defer3{SomeLambda};
+    static_assert(noexcept(scope_guard::ScopeExit<decltype(SomeLambda)>{SomeLambda}), "");
+  }
+}
+
 TEST_CASE("called on scope leave") {
   SECTION("defer") {
     ExecutionCounter m;

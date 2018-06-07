@@ -69,7 +69,6 @@ class ScopeExit final {
   inline ~ScopeExit() noexcept {
     if (execute_) {
       action_();
-      execute_ = false;
     }
   }
 

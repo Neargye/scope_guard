@@ -1,7 +1,6 @@
-// scope_guard example
-//
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-// Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2018 - 2019 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -26,34 +25,56 @@
 #include <iostream>
 #include <fstream>
 
-int Foo() { return 42; }
-
 int main() {
-  std::fstream file;
-  file.open("test.txt", std::fstream::out | std::fstream::trunc);
-  DEFER {
+  try {
+    std::fstream file;
+    file.open("test.txt", std::fstream::out | std::fstream::trunc);
+    SCOPE_EXIT{
+      file.close();
+      std::cout << "[1] close file" << std::endl;
+    };
+
+    MAKE_SCOPE_EXIT(scope_exit_1) {
+      file.close();
+      std::cout << "[1] close file #1" << std::endl;
+    };
+
+    auto scope_exit_2 = scope_guard::make_scope_exit([&]() {
+      file.close();
+      std::cout << "[1] close file #2" << std::endl;
+    });
+
+    file << "[1] example" << std::endl;
+    std::cout << "[1] write to file" << std::endl;
+
+    scope_exit_1.dismiss();
+
+    throw std::runtime_error{ "some error." };
+
+    scope_exit_2.dismiss();
+
     file.close();
-    std::cout << "close file" << std::endl;
+  }
+  catch (...) {
+    std::cout << "[1] error" << std::endl;
+  }
+
+  std::fstream file;
+  SCOPE_EXIT{
+    file.close();
+    std::cout << "[2] close file" << std::endl;
   };
-
-  MAKE_DEFER(custom_defer1) {
-    int a = Foo();
-    std::cout << "custom defer 1" << std::endl;
-  };
-
-  auto custom_defer2 = scope_guard::MakeScopeExit([&]() {
-    std::cout << "custom defer 2" << std::endl;
-    int b = Foo();
-  });
-
-  file << "example" << std::endl;
-  std::cout << "write to file" << std::endl;
-
-  custom_defer1.Dismiss();
-  custom_defer2.Dismiss();
-
-  // prints "write to file"
-  // prints "close file"
+  file.open("test.txt", std::fstream::out | std::fstream::trunc);
+  file << "[2] example" << std::endl;
+  std::cout << "[2] write to file" << std::endl;
+  file.close();
 
   return 0;
+
+  // prints "[1] write to file".
+  // prints "[1] close file #2".
+  // prints "[1] close file".
+  // prints "[1] error".
+  // prints "[2] write to file".
+  // prints "[2] close file".
 }

@@ -5,10 +5,11 @@
 //  ____) | (_| (_) | |_) |  __/ | |__| | |_| | (_| | | | (_| | | |____|_|   |_|
 // |_____/ \___\___/| .__/ \___|  \_____|\__,_|\__,_|_|  \__,_|  \_____|
 //                  | | https://github.com/Neargye/scope_guard
-//                  |_| vesion 0.3.0
+//                  |_| vesion 0.4.0
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-// Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2018 - 2019 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -32,115 +33,281 @@
 
 #include <type_traits>
 #include <utility>
+#if (defined(_MSC_VER) && _MSC_VER >= 1900) || ((defined(__clang__) || defined(__GNUC__)) && __cplusplus >= 201700L)
+#include <exception>
+#endif
+
+// scope_guard throwable settings:
+// SCOPE_GUARD_MAY_EXCEPTIONS
+// SCOPE_GUARD_NO_EXCEPTIONS
+// SCOPE_GUARD_SUPPRESS_EXCEPTIONS
+
+#if !defined(SCOPE_GUARD_MAY_EXCEPTIONS) && !defined(SCOPE_GUARD_NO_EXCEPTIONS) && !defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS)
+#  define SCOPE_GUARD_MAY_EXCEPTIONS
+#elif (defined(SCOPE_GUARD_MAY_EXCEPTIONS) + defined(SCOPE_GUARD_NO_EXCEPTIONS) + defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS)) > 1
+#  error Only one of SCOPE_GUARD_MAY_EXCEPTIONS and SCOPE_GUARD_NO_EXCEPTIONS and SCOPE_GUARD_SUPPRESS_EXCEPTIONS may be defined.
+#endif
+
+#if defined(SCOPE_GUARD_MAY_EXCEPTIONS)
+#  define SCOPE_GUARD_NOEXCEPT(...) noexcept(__VA_ARGS__)
+#  define SCOPE_GUARD_ACTION_NOEXCEPT
+#else
+#  define SCOPE_GUARD_NOEXCEPT(...) noexcept
+#  define SCOPE_GUARD_ACTION_NOEXCEPT noexcept
+#endif
+
+#if defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS)
+#  define SCOPE_GUARD_TRY try {
+#  define SCOPE_GUARD_CATCH } catch (...) {}
+#else
+#  define SCOPE_GUARD_TRY
+#  define SCOPE_GUARD_CATCH
+#endif
 
 namespace scope_guard {
 
-template <typename A>
-class ScopeExit final {
-  using F = typename std::decay<A>::type;
+namespace detail {
 
-  static_assert(std::is_same<void, decltype((std::declval<A>())())>::value,
-                "ScopeExit requirement no-argument callable returns void");
+#if defined(_MSC_VER) && _MSC_VER < 1900
+inline int uncaught_exceptions() noexcept {
+  return *(reinterpret_cast<int*>(static_cast<char*>(static_cast<void*>(_getptd())) + (sizeof(void*) == 8 ? 0x100 : 0x90)));
+}
+#elif (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
+struct __cxa_eh_globals;
+extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
+inline int uncaught_exceptions() noexcept {
+  return *(reinterpret_cast<unsigned int*>(static_cast<char*>(static_cast<void*>(__cxa_get_globals())) + sizeof(void*)));
+}
+#else
+inline int uncaught_exceptions() noexcept {
+  return std::uncaught_exceptions();
+}
+#endif
+
+class on_exit_policy final {
+  bool execute_;
 
  public:
-  ScopeExit() = delete;
-  ScopeExit(const ScopeExit&) = delete;
-  ScopeExit& operator=(const ScopeExit&) = delete;
-  ScopeExit& operator=(ScopeExit&&) = delete;
+  explicit on_exit_policy(bool execute)
+      : execute_(execute) {}
 
-  inline ScopeExit(ScopeExit&& other) noexcept(std::is_nothrow_move_constructible<F>::value)
-      : execute_(false),
-        action_(std::move(other.action_)) {
-    execute_ = std::move(other.execute_);
-    other.execute_ = false;
-  }
+  on_exit_policy() = delete;
+  on_exit_policy(const on_exit_policy&) = default;
+  on_exit_policy(on_exit_policy&&) = default;
+  on_exit_policy& operator=(const on_exit_policy&) = default;
+  on_exit_policy& operator=(on_exit_policy&&) = default;
+  ~on_exit_policy() = default;
 
-  template <typename T, typename = typename std::enable_if<std::is_constructible<F, T>::value ||
-                                                           std::is_constructible<F, T&>::value>::type>
-  inline explicit ScopeExit(T&& action) noexcept(std::is_nothrow_constructible<F, T>::value ||
-                                                 std::is_nothrow_constructible<F, T&>::value)
-      : execute_(true),
-        action_(std::forward<T>(action)) {}
-
-  inline void Dismiss() noexcept {
+  void dismiss() noexcept {
     execute_ = false;
   }
 
-  inline ~ScopeExit() noexcept {
-    if (execute_) {
-      action_();
+  bool should_execute() const noexcept {
+    return execute_;
+  }
+};
+
+class on_fail_policy final {
+  int ec_;
+
+ public:
+  explicit on_fail_policy(bool execute)
+      : ec_(execute ? uncaught_exceptions() : -1) {}
+
+  on_fail_policy() = delete;
+  on_fail_policy(const on_fail_policy&) = default;
+  on_fail_policy(on_fail_policy&&) = default;
+  on_fail_policy& operator=(const on_fail_policy&) = default;
+  on_fail_policy& operator=(on_fail_policy&&) = default;
+  ~on_fail_policy() = default;
+
+  void dismiss() noexcept {
+    ec_ = -1;
+  }
+
+  bool should_execute() const noexcept {
+    return ec_ != -1 && ec_ < uncaught_exceptions();
+  }
+};
+
+class on_success_policy final {
+  int ec_;
+
+ public:
+  explicit on_success_policy(bool execute)
+      : ec_(execute ? uncaught_exceptions() : -1) {}
+
+  on_success_policy() = delete;
+  on_success_policy(const on_success_policy&) = default;
+  on_success_policy(on_success_policy&&) = default;
+  on_success_policy& operator=(const on_success_policy&) = default;
+  on_success_policy& operator=(on_success_policy&&) = default;
+  ~on_success_policy() = default;
+
+  void dismiss() noexcept {
+    ec_ = -1;
+  }
+
+  bool should_execute() const noexcept {
+    return ec_ != -1 && ec_ >= uncaught_exceptions();
+  }
+};
+
+template <typename F, typename P>
+class scope_guard final {
+  using A = typename std::decay<F>::type;
+  using invoke_action_result_t = decltype((std::declval<A>())());
+  using is_nothrow_invocable_action = std::integral_constant<bool, noexcept((std::declval<A>())())>;
+
+  static_assert(std::is_same<void, invoke_action_result_t>::value,
+                "scope_guard require no-argument action returns void.");
+#if defined(SCOPE_GUARD_NO_EXCEPTIONS)
+  static_assert(is_nothrow_invocable_action::value || std::is_same<P, on_success_policy>::value, // Only scope_succes may throw.
+                "scope_guard require noexcept action");
+#endif
+  static_assert(std::is_same<P, on_exit_policy>::value ||
+                    std::is_same<P, on_fail_policy>::value ||
+                    std::is_same<P, on_success_policy>::value,
+                "scope_guard require on_exit_policy, on_fail_policy or on_success_policy.");
+
+ public:
+  scope_guard() = delete;
+  scope_guard(const scope_guard&) = delete;
+  scope_guard& operator=(const scope_guard&) = delete;
+  scope_guard& operator=(scope_guard&&) = delete;
+
+  scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
+      : policy_(false),
+        action_(std::move(other.action_)) {
+    policy_ = std::move(other.policy_);
+    other.policy_.dismiss();
+  }
+
+  template <typename T, typename = typename std::enable_if<std::is_constructible<A, T>::value || std::is_constructible<A, T&>::value>::type>
+  explicit scope_guard(T&& action) noexcept(std::is_nothrow_constructible<A, T>::value || std::is_nothrow_constructible<A, T&>::value)
+      : policy_(true),
+        action_(std::forward<T>(action)) {}
+
+  void dismiss() noexcept {
+    policy_.dismiss();
+  }
+
+  ~scope_guard() SCOPE_GUARD_NOEXCEPT(is_nothrow_invocable_action::value) {
+    if (policy_.should_execute()) {
+      SCOPE_GUARD_TRY
+        action_();
+      SCOPE_GUARD_CATCH
     }
   }
 
  private:
-  bool execute_;
-  F action_;
+   P policy_;
+   A action_;
 };
-
-namespace detail {
-
-struct ScopeExitTag {};
-
-template <typename A>
-inline ScopeExit<A> operator+(ScopeExitTag, A&& action) noexcept(noexcept(ScopeExit<A>(std::forward<A>(action)))) {
-  return ScopeExit<A>(std::forward<A>(action));
-}
 
 } // namespace detail
 
-template <typename A>
-inline ScopeExit<A> MakeScopeExit(A&& action) noexcept(noexcept(ScopeExit<A>(std::forward<A>(action)))) {
-  return ScopeExit<A>(std::forward<A>(action));
+template <typename T>
+using scope_exit = detail::scope_guard<T, detail::on_exit_policy>;
+
+template <typename T>
+using scope_fail = detail::scope_guard<T, detail::on_fail_policy>;
+
+template <typename T>
+using scope_succes = detail::scope_guard<T, detail::on_success_policy>;
+
+template <typename T>
+inline scope_exit<T> make_scope_exit(T&& action) noexcept(noexcept(scope_exit<T>(std::forward<T>(action)))) {
+  return scope_exit<T>(std::forward<T>(action));
 }
+
+template <typename T>
+inline scope_fail<T> make_scope_fail(T&& action) noexcept(noexcept(scope_fail<T>(std::forward<T>(action)))) {
+  return scope_fail<T>(std::forward<T>(action));
+}
+
+template <typename T>
+inline scope_succes<T> make_scope_succes(T&& action) noexcept(noexcept(scope_succes<T>(std::forward<T>(action)))) {
+  return scope_succes<T>(std::forward<T>(action));
+}
+
+namespace detail {
+
+struct scope_exit_tag {};
+
+template <typename T>
+inline scope_exit<T> operator+(scope_exit_tag, T&& action) noexcept(noexcept(scope_exit<T>(std::forward<T>(action)))) {
+  return scope_exit<T>(std::forward<T>(action));
+}
+
+struct scope_fail_tag {};
+
+template <typename T>
+inline scope_fail<T> operator+(scope_fail_tag, T&& action) noexcept(noexcept(scope_fail<T>(std::forward<T>(action)))) {
+  return scope_fail<T>(std::forward<T>(action));
+}
+
+struct scope_succes_tag {};
+
+template <typename T>
+inline scope_succes<T> operator+(scope_succes_tag, T&& action) noexcept(noexcept(scope_succes<T>(std::forward<T>(action)))) {
+  return scope_succes<T>(std::forward<T>(action));
+}
+} // namespace detail
 
 } // namespace scope_guard
 
-// CPP_ATTRIBUTE_MAYBE_UNUSED indicates that a function, variable or parameter might or might not be used.
-#if !defined(CPP_ATTRIBUTE_MAYBE_UNUSED)
-#  if defined(_MSC_VER)
-#    if (_MSC_VER >= 1911 && _MSVC_LANG >= 201703L)
-#      define CPP_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
+// ATTR_MAYBE_UNUSED suppresses compiler warnings on unused entities, if any.
+#if !defined(ATTR_MAYBE_UNUSED)
+#  if defined(__clang__)
+#    if (__clang_major__ * 10 + __clang_minor__) >= 39 && __cplusplus >= 201703L
+#      define ATTR_MAYBE_UNUSED [[maybe_unused]]
 #    else
-#      define CPP_ATTRIBUTE_MAYBE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
-#    endif
-#  elif defined(__clang__)
-#    if ((__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 9)) && __cplusplus >= 201703L)
-#      define CPP_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
-#    else
-#      define CPP_ATTRIBUTE_MAYBE_UNUSED __attribute__((__unused__))
+#      define ATTR_MAYBE_UNUSED __attribute__((__unused__))
 #    endif
 #  elif defined(__GNUC__)
-#    if (__GNUC__ > 7 && __cplusplus >= 201703L)
-#      define CPP_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
+#    if __GNUC__ >= 7 && __cplusplus >= 201703L
+#      define ATTR_MAYBE_UNUSED [[maybe_unused]]
 #    else
-#      define CPP_ATTRIBUTE_MAYBE_UNUSED __attribute__((__unused__))
+#      define ATTR_MAYBE_UNUSED __attribute__((__unused__))
+#    endif
+#  elif defined(_MSC_VER)
+#    if _MSC_VER >= 1911 && defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
+#      define ATTR_MAYBE_UNUSED [[maybe_unused]]
+#    else
+#      define ATTR_MAYBE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
 #    endif
 #  else
-#    define CPP_ATTRIBUTE_MAYBE_UNUSED
+#    define ATTR_MAYBE_UNUSED
 #  endif
 #endif
 
-#if !defined(STR_CONCAT_)
-#  define STR_CONCAT_(s1, s2) s1##s2
-#endif
-
-#if !defined(STR_CONCAT)
-#  define STR_CONCAT(s1, s2) STR_CONCAT_(s1, s2)
-#endif
-
-#define MAKE_SCOPE_EXIT(name) \
-  auto name = ::scope_guard::detail::ScopeExitTag{} + [&]() noexcept -> void
+#define SCOPE_GUARD_STR_CONCAT_(s1, s2) s1##s2
+#define SCOPE_GUARD_STR_CONCAT(s1, s2) SCOPE_GUARD_STR_CONCAT_(s1, s2)
 
 #if defined(__COUNTER__)
-#  define SCOPE_EXIT                 \
-    CPP_ATTRIBUTE_MAYBE_UNUSED const \
-    MAKE_SCOPE_EXIT(STR_CONCAT(__scope_exit__object__, __COUNTER__))
+#  define SCOPE_GUARD_COUNTER __COUNTER__
 #elif defined(__LINE__)
-#  define SCOPE_EXIT                 \
-    CPP_ATTRIBUTE_MAYBE_UNUSED const \
-    MAKE_SCOPE_EXIT(STR_CONCAT(__scope_exit__object__, __LINE__))
+#  define SCOPE_GUARD_COUNTER __LINE__
+#else
+#  error scope_guard not supported by compiler.
 #endif
 
-#define DEFER SCOPE_EXIT
+#define MAKE_SCOPE_EXIT(name) auto name = ::scope_guard::detail::scope_exit_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
+#define MAKE_SCOPE_FAIL(name) auto name = ::scope_guard::detail::scope_fail_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
+#define MAKE_SCOPE_SUCCESS(name) auto name = ::scope_guard::detail::scope_succes_tag{} + [&]() -> void
 
+#define SCOPE_EXIT        \
+  ATTR_MAYBE_UNUSED const \
+  MAKE_SCOPE_EXIT(SCOPE_GUARD_STR_CONCAT(__scope_exit__object_, SCOPE_GUARD_COUNTER))
+
+#define SCOPE_FAIL        \
+  ATTR_MAYBE_UNUSED const \
+  MAKE_SCOPE_FAIL(SCOPE_GUARD_STR_CONCAT(__scope_fail__object_, SCOPE_GUARD_COUNTER))
+
+#define SCOPE_SUCCESS        \
+  ATTR_MAYBE_UNUSED const    \
+  MAKE_SCOPE_SUCCESS(SCOPE_GUARD_STR_CONCAT(__scope_succes__object_, SCOPE_GUARD_COUNTER))
+
+#define DEFER SCOPE_EXIT
 #define MAKE_DEFER(name) MAKE_SCOPE_EXIT(name)

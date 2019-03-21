@@ -1,7 +1,6 @@
-// scope_guard test
-//
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
-// Copyright (c) 2018 Daniil Goncharov <neargye@gmail.com>.
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2018 - 2019 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -48,45 +47,6 @@ public:
 
   void operator() () {}
 };
-
-void Foo() {}
-
-TEST_CASE("compilation") {
-  SECTION("function") {
-    DEFER{ Foo(); };
-    MAKE_DEFER(custom_defer1) { Foo(); };
-
-    auto custom_defer2 = scope_guard::MakeScopeExit(Foo);
-    static_assert(noexcept(scope_guard::MakeScopeExit(Foo)), "");
-
-    scope_guard::ScopeExit<decltype(Foo)> custom_defer3{Foo};
-    static_assert(noexcept(scope_guard::ScopeExit<decltype(Foo)>{Foo}), "");
-  }
-
-  SECTION("class") {
-    F f;
-    DEFER{ f(); };
-    MAKE_DEFER(custom_defer1) { f(); };
-
-    auto custom_defer2 = scope_guard::MakeScopeExit(f);
-    static_assert(noexcept(scope_guard::MakeScopeExit(f)), "");
-
-    scope_guard::ScopeExit<decltype(f)> custom_defer3{f};
-    static_assert(noexcept(scope_guard::ScopeExit<decltype(f)>{f}), "");
-  }
-
-  SECTION("lambda") {
-    auto SomeLambda = [&]() {};
-    DEFER{ SomeLambda(); };
-    MAKE_DEFER(custom_defer1) { SomeLambda(); };
-
-    auto custom_defer2 = scope_guard::MakeScopeExit(SomeLambda);
-    static_assert(noexcept(scope_guard::MakeScopeExit(SomeLambda)), "");
-
-    scope_guard::ScopeExit<decltype(SomeLambda)> custom_defer3{SomeLambda};
-    static_assert(noexcept(scope_guard::ScopeExit<decltype(SomeLambda)>{SomeLambda}), "");
-  }
-}
 
 TEST_CASE("called on scope leave") {
   SECTION("defer") {
@@ -287,96 +247,7 @@ TEST_CASE("called on for") {
   REQUIRE_CALL_V(m, Execute(),
                  .TIMES(execute_times));
 
-  for (std::size_t i = 0; i < execute_times; ++i)
+  for (std::size_t i = 0; i < execute_times; ++i) {
     DEFER{ m.Execute(); };
-}
-
-TEST_CASE("fstream") {
-  SECTION("close on scope leave") {
-    std::fstream file;
-    ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
-
-    REQUIRE_NOTHROW([&]() {
-      file.open("test.txt", std::fstream::out | std::fstream::trunc);
-      DEFER{
-        if (file.is_open()) {
-          file.close();
-          m.Execute();
-        }
-      };
-      file << "write to file" << std::endl;
-    }());
-
-    REQUIRE(!file.is_open());
-  }
-
-  SECTION("close on exceptione") {
-    std::fstream file;
-    ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
-
-    REQUIRE_THROWS([&]() {
-      file.open("test.txt", std::fstream::out | std::fstream::trunc);
-      DEFER{
-        if (file.is_open()) {
-          file.close();
-          m.Execute();
-        }
-      };
-      file << "write to file" << std::endl;
-
-      throw std::exception{};
-
-      file.close();
-    }());
-
-    REQUIRE(!file.is_open());
-  }
-
-  SECTION("close if not on scope leave") {
-    std::fstream file;
-    ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
-
-    REQUIRE_NOTHROW([&]() {
-      file.open("test.txt", std::fstream::out | std::fstream::trunc);
-      DEFER{
-        if (file.is_open()) {
-          file.close();
-          m.Execute();
-        }
-      };
-      file << "write to file" << std::endl;
-      file.close();
-    }());
-
-    REQUIRE(!file.is_open());
-  }
-
-  SECTION("close if not on exceptione") {
-    std::fstream file;
-    ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
-
-    REQUIRE_THROWS([&]() {
-      file.open("test.txt", std::fstream::out | std::fstream::trunc);
-      DEFER{
-        if (file.is_open()) {
-          file.close();
-          m.Execute();
-        }
-      };
-      file << "write to file" << std::endl;
-      file.close();
-
-      throw std::exception{};
-    }());
-
-    REQUIRE(!file.is_open());
   }
 }

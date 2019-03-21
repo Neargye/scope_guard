@@ -294,20 +294,19 @@ inline scope_succes<T> operator+(scope_succes_tag, T&& action) noexcept(noexcept
 #endif
 
 #define MAKE_SCOPE_EXIT(name) auto name = ::scope_guard::detail::scope_exit_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
-#define MAKE_SCOPE_FAIL(name) auto name = ::scope_guard::detail::scope_fail_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
-#define MAKE_SCOPE_SUCCESS(name) auto name = ::scope_guard::detail::scope_succes_tag{} + [&]() -> void
-
 #define SCOPE_EXIT        \
   ATTR_MAYBE_UNUSED const \
   MAKE_SCOPE_EXIT(SCOPE_GUARD_STR_CONCAT(__scope_exit__object_, SCOPE_GUARD_COUNTER))
 
+#define MAKE_SCOPE_FAIL(name) auto name = ::scope_guard::detail::scope_fail_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
 #define SCOPE_FAIL        \
   ATTR_MAYBE_UNUSED const \
   MAKE_SCOPE_FAIL(SCOPE_GUARD_STR_CONCAT(__scope_fail__object_, SCOPE_GUARD_COUNTER))
 
+#define MAKE_SCOPE_SUCCESS(name) auto name = ::scope_guard::detail::scope_succes_tag{} + [&]() -> void
 #define SCOPE_SUCCESS        \
   ATTR_MAYBE_UNUSED const    \
   MAKE_SCOPE_SUCCESS(SCOPE_GUARD_STR_CONCAT(__scope_succes__object_, SCOPE_GUARD_COUNTER))
 
-#define DEFER SCOPE_EXIT
 #define MAKE_DEFER(name) MAKE_SCOPE_EXIT(name)
+#define DEFER SCOPE_EXIT

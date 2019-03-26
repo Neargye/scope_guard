@@ -48,18 +48,18 @@
 #  error Only one of SCOPE_GUARD_MAY_EXCEPTIONS and SCOPE_GUARD_NO_EXCEPTIONS and SCOPE_GUARD_SUPPRESS_EXCEPTIONS may be defined.
 #endif
 
-#if defined(SCOPE_GUARD_MAY_EXCEPTIONS)
-#  define SCOPE_GUARD_NOEXCEPT(...) noexcept(__VA_ARGS__)
-#  define SCOPE_GUARD_ACTION_NOEXCEPT
-#else
-#  define SCOPE_GUARD_NOEXCEPT(...) noexcept
+#if defined(SCOPE_GUARD_NO_EXCEPTIONS)
 #  define SCOPE_GUARD_ACTION_NOEXCEPT noexcept
+#elif
+#  define SCOPE_GUARD_ACTION_NOEXCEPT
 #endif
 
 #if defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS)
+#  define SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define SCOPE_GUARD_TRY try {
 #  define SCOPE_GUARD_CATCH } catch (...) {}
 #else
+#  define SCOPE_GUARD_NOEXCEPT(...) noexcept(__VA_ARGS__)
 #  define SCOPE_GUARD_TRY
 #  define SCOPE_GUARD_CATCH
 #endif
@@ -289,8 +289,6 @@ inline scope_succes<T> operator+(scope_succes_tag, T&& action) noexcept(noexcept
 #  define SCOPE_GUARD_COUNTER __COUNTER__
 #elif defined(__LINE__)
 #  define SCOPE_GUARD_COUNTER __LINE__
-#else
-#  error scope_guard not supported by compiler.
 #endif
 
 #define MAKE_SCOPE_EXIT(name) auto name = ::scope_guard::detail::scope_exit_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void

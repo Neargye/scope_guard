@@ -48,7 +48,7 @@ int main() {
 
     scope_fail_1.dismiss();
 
-    throw std::runtime_error{ "some error." };
+    throw std::runtime_error{"error"};
 
     scope_fail_2.dismiss();
 

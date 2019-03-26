@@ -25,11 +25,11 @@ Program control transferring does not influence Scope Guard statement execution.
 
 ## Features
 
-* Simple syntax
 * C++11
+* Simple syntax
 * Header-only
 * Dependency-free
-* Thin callback wrapping: no added std::function or virtual table penalties
+* Thin callback wrapping, no added std::function or virtual table penalties
 * No implicitly ignored return, check callback return void
 * Defer or Scope Guard syntax
 
@@ -89,13 +89,14 @@ void f() {
 
 ## Integration
 
-You should add required file [scope_guard.hpp](include/scope_guard.hpp) and switch to C++11
+You should add required file [scope_guard.hpp](include/scope_guard.hpp).
 
 ## Compiler compatibility
 
-* GCC
-* Clang
-* MSVC
+* Clang/LLVM >= 3.6
+* Visual C++ >= 14 / Visual Studio >= 2015
+* Xcode >= 7
+* GCC >= 4.8
 
 ## References
 

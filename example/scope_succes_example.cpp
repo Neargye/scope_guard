@@ -49,7 +49,7 @@ int main() {
 
     scope_succes_1.dismiss();
 
-    throw std::runtime_error{ "some error." };
+    throw std::runtime_error{"error"};
 
     scope_succes_2.dismiss();
   }

@@ -4,6 +4,7 @@ shallow_clone: true
 
 image:
   - Visual Studio 2017
+  - Visual Studio 2019 Preview
 
 platform:
   - Win32
@@ -19,7 +20,7 @@ build:
 environment:
   matrix:
     - GENERATOR: "Visual Studio 15 2017"
-    - GENERATOR: "Visual Studio 14 2015"
+    - GENERATOR: "Visual Studio 16 2019"
 
 before_build:
   - if exist build RMDIR /S /Q build

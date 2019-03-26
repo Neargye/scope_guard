@@ -1,4 +1,4 @@
-os: linux
+os: linux # Use Linux unless specified otherwise.
 dist: xenial
 sudo: required
 
@@ -76,12 +76,17 @@ matrix:
         - CXX_COMPILER=g++-8 CC_COMPILER=gcc-8
 
     - os: linux
+      compiler: g++
+      env:
+        - CXX_COMPILER=g++-9 CC_COMPILER=gcc-9
+
+    - os: linux
       compiler: clang++
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.6
+            - llvm-toolchain-xenial-3.6
           packages:
             - clang-3.6
       env:
@@ -93,7 +98,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.7
+            - llvm-toolchain-xenial-3.7
           packages:
             - clang-3.7
       env:
@@ -105,7 +110,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.8
+            - llvm-toolchain-xenial-3.8
           packages:
             - clang-3.8
       env:
@@ -117,7 +122,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.9
+            - llvm-toolchain-xenial-3.9
           packages:
             - clang-3.9
       env:
@@ -129,7 +134,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-4.0
+            - llvm-toolchain-xenial-4.0
           packages:
             - clang-4.0
       env:
@@ -170,6 +175,18 @@ matrix:
             - clang-7
       env:
         - CXX_COMPILER=clang++-7 CC_COMPILER=clang-7
+
+    - os: linux
+      compiler: clang++
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-xenial-8
+          packages:
+            - clang-8
+      env:
+        - CXX_COMPILER=clang++-8 CC_COMPILER=clang-8
 
     - os: osx
       compiler: clang++
@@ -212,6 +229,7 @@ install:
       elif [[ "${CXX}" == "clang++-5.0" ]]; then LLVM_VERSION="5.0.2";
       elif [[ "${CXX}" == "clang++-6.0" ]]; then LLVM_VERSION="6.0.1";
       elif [[ "${CXX}" == "clang++-7" ]]; then LLVM_VERSION="7.0.1";
+      elif [[ "${CXX}" == "clang++-8" ]]; then LLVM_VERSION="8.0.0";
       fi
       LLVM_URL="http://llvm.org/releases/${LLVM_VERSION}/llvm-${LLVM_VERSION}.src.tar.xz"
       LIBCXX_URL="http://llvm.org/releases/${LLVM_VERSION}/libcxx-${LLVM_VERSION}.src.tar.xz"
@@ -226,6 +244,16 @@ install:
       export CXXFLAGS="-isystem ${LLVM_INSTALL}/include/c++/v1"
       export LDFLAGS="-L ${LLVM_INSTALL}/lib -l c++ -l c++abi"
       export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${LLVM_INSTALL}/lib"
+    fi
+  - |
+    # If linux and gcc-9 install gcc-9.
+    if [[ "${CXX}" == "g++-9" ]]; then
+      wget http://kayari.org/gcc-latest/gcc-latest.deb
+      sudo dpkg -i gcc-latest.deb
+      sudo ln -s /opt/gcc-latest/bin/gcc /usr/bin/gcc-9
+      sudo ln -s /opt/gcc-latest/bin/g++ /usr/bin/g++-9
+      sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9
+      sudo ldconfig /opt/gcc-latest/lib64
     fi
 
 before_script:

@@ -50,7 +50,7 @@
 
 #if defined(SCOPE_GUARD_NO_EXCEPTIONS)
 #  define SCOPE_GUARD_ACTION_NOEXCEPT noexcept
-#elif
+#else
 #  define SCOPE_GUARD_ACTION_NOEXCEPT
 #endif
 

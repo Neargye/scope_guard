@@ -14,6 +14,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     if(HAS_PERMISSIVE_FLAG)
         set(OPTIONS ${OPTIONS} /permissive-)
     endif()
+    set(OPTIONS ${OPTIONS} /wd4702) # Disable warning C4702: unreachable code
 endif()
 
 add_executable(scope_exit_example

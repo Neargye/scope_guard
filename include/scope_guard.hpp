@@ -29,8 +29,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#pragma once
+#ifndef NEARGYE_SCOPE_GUARD_HPP
+#define NEARGYE_SCOPE_GUARD_HPP
 
+#include <cstddef>
+#include <new>
 #include <type_traits>
 #include <utility>
 #if (defined(_MSC_VER) && _MSC_VER >= 1900) || ((defined(__clang__) || defined(__GNUC__)) && __cplusplus >= 201700L)
@@ -38,9 +41,9 @@
 #endif
 
 // scope_guard throwable settings:
-// SCOPE_GUARD_MAY_EXCEPTIONS
-// SCOPE_GUARD_NO_EXCEPTIONS
-// SCOPE_GUARD_SUPPRESS_EXCEPTIONS
+// SCOPE_GUARD_MAY_EXCEPTIONS action may throw exceptions.
+// SCOPE_GUARD_NO_EXCEPTIONS require noexcept action.
+// SCOPE_GUARD_SUPPRESS_EXCEPTIONS exceptions during action will be suppressed.
 
 #if !defined(SCOPE_GUARD_MAY_EXCEPTIONS) && !defined(SCOPE_GUARD_NO_EXCEPTIONS) && !defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS)
 #  define SCOPE_GUARD_MAY_EXCEPTIONS
@@ -87,8 +90,7 @@ inline int uncaught_exceptions() noexcept {
 struct on_exit_policy final {
   bool execute_;
 
-  explicit on_exit_policy(bool execute) noexcept
-      : execute_(execute) {}
+  explicit on_exit_policy(bool execute) noexcept : execute_(execute) {}
 
   void dismiss() noexcept {
     execute_ = false;
@@ -102,8 +104,7 @@ struct on_exit_policy final {
 struct on_fail_policy final {
   int ec_;
 
-  explicit on_fail_policy(bool execute) noexcept
-      : ec_(execute ? uncaught_exceptions() : -1) {}
+  explicit on_fail_policy(bool execute) noexcept : ec_(execute ? uncaught_exceptions() : -1) {}
 
   void dismiss() noexcept {
     ec_ = -1;
@@ -117,8 +118,7 @@ struct on_fail_policy final {
 struct on_success_policy final {
   int ec_;
 
-  explicit on_success_policy(bool execute) noexcept
-      : ec_(execute ? uncaught_exceptions() : -1) {}
+  explicit on_success_policy(bool execute) noexcept : ec_(execute ? uncaught_exceptions() : -1) {}
 
   void dismiss() noexcept {
     ec_ = -1;
@@ -147,6 +147,8 @@ class scope_guard final {
   scope_guard(const scope_guard&) = delete;
   scope_guard& operator=(const scope_guard&) = delete;
   scope_guard& operator=(scope_guard&&) = delete;
+  void* operator new(std::size_t) = delete;
+  void operator delete(void*) = delete;
 
   scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_(false),
@@ -155,10 +157,32 @@ class scope_guard final {
     other.policy_.dismiss();
   }
 
-  template <typename T, typename = typename std::enable_if<std::is_constructible<A, T>::value || std::is_constructible<A, T&>::value>::type>
-  explicit scope_guard(T&& action) noexcept(std::is_nothrow_constructible<A, T>::value || std::is_nothrow_constructible<A, T&>::value)
+  explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value) try
       : policy_(true),
-        action_(std::forward<T>(action)) {}
+        action_(std::move(action)) {
+    }
+    catch (...) {
+      std::forward<A>(action)();
+      throw;
+    }
+
+  explicit scope_guard(const A& action) noexcept(std::is_nothrow_move_constructible<A>::value) try
+      : policy_(true),
+        action_(std::move(action)) {
+    }
+    catch (...) {
+      action();
+      throw;
+    }
+
+  explicit scope_guard(A& action) noexcept(std::is_nothrow_move_constructible<A>::value) try
+      : policy_(true),
+        action_(std::move(action)) {
+    }
+    catch (...) {
+      action();
+      throw;
+    }
 
   void dismiss() noexcept {
     policy_.dismiss();
@@ -182,51 +206,51 @@ class scope_guard final {
 
 } // namespace detail
 
-template <typename T>
-using scope_exit = detail::scope_guard<T, detail::on_exit_policy>;
+template <typename F>
+using scope_exit = detail::scope_guard<F, detail::on_exit_policy>;
 
-template <typename T>
-scope_exit<T> make_scope_exit(T&& action) noexcept(noexcept(scope_exit<T>(std::forward<T>(action)))) {
-  return scope_exit<T>(std::forward<T>(action));
+template <typename F>
+scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
+  return scope_exit<F>(std::forward<F>(action));
 }
 
-template <typename T>
-using scope_fail = detail::scope_guard<T, detail::on_fail_policy>;
+template <typename F>
+using scope_fail = detail::scope_guard<F, detail::on_fail_policy>;
 
-template <typename T>
-scope_fail<T> make_scope_fail(T&& action) noexcept(noexcept(scope_fail<T>(std::forward<T>(action)))) {
-  return scope_fail<T>(std::forward<T>(action));
+template <typename F>
+scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
+  return scope_fail<F>(std::forward<F>(action));
 }
 
-template <typename T>
-using scope_succes = detail::scope_guard<T, detail::on_success_policy>;
+template <typename F>
+using scope_succes = detail::scope_guard<F, detail::on_success_policy>;
 
-template <typename T>
-scope_succes<T> make_scope_succes(T&& action) noexcept(noexcept(scope_succes<T>(std::forward<T>(action)))) {
-  return scope_succes<T>(std::forward<T>(action));
+template <typename F>
+scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
+  return scope_succes<F>(std::forward<F>(action));
 }
 
 namespace detail {
 
 struct scope_exit_tag {};
 
-template <typename T>
-scope_exit<T> operator+(scope_exit_tag, T&& action) noexcept(noexcept(scope_exit<T>(std::forward<T>(action)))) {
-  return scope_exit<T>(std::forward<T>(action));
+template <typename F>
+scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
+  return scope_exit<F>(std::forward<F>(action));
 }
 
 struct scope_fail_tag {};
 
-template <typename T>
-scope_fail<T> operator+(scope_fail_tag, T&& action) noexcept(noexcept(scope_fail<T>(std::forward<T>(action)))) {
-  return scope_fail<T>(std::forward<T>(action));
+template <typename F>
+scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
+  return scope_fail<F>(std::forward<F>(action));
 }
 
 struct scope_succes_tag {};
 
-template <typename T>
-scope_succes<T> operator+(scope_succes_tag, T&& action) noexcept(noexcept(scope_succes<T>(std::forward<T>(action)))) {
-  return scope_succes<T>(std::forward<T>(action));
+template <typename F>
+scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
+  return scope_succes<F>(std::forward<F>(action));
 }
 } // namespace detail
 
@@ -266,16 +290,19 @@ scope_succes<T> operator+(scope_succes_tag, T&& action) noexcept(noexcept(scope_
 #  define SCOPE_GUARD_COUNTER __LINE__
 #endif
 
+// SCOPE_EXIT executing action on scope exit.
 #define MAKE_SCOPE_EXIT(name) auto name = ::scope_guard::detail::scope_exit_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
 #define SCOPE_EXIT        \
   ATTR_MAYBE_UNUSED const \
   MAKE_SCOPE_EXIT(SCOPE_GUARD_STR_CONCAT(__scope_exit__object_, SCOPE_GUARD_COUNTER))
 
+// SCOPE_FAIL executing action on scope exit when an exception has been thrown before scope exit.
 #define MAKE_SCOPE_FAIL(name) auto name = ::scope_guard::detail::scope_fail_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
 #define SCOPE_FAIL        \
   ATTR_MAYBE_UNUSED const \
   MAKE_SCOPE_FAIL(SCOPE_GUARD_STR_CONCAT(__scope_fail__object_, SCOPE_GUARD_COUNTER))
 
+// SCOPE_SUCCESS executing action on scope exit when no exceptions have been thrown before scope exit.
 #define MAKE_SCOPE_SUCCESS(name) auto name = ::scope_guard::detail::scope_succes_tag{} + [&]() SCOPE_GUARD_ACTION_NOEXCEPT -> void
 #define SCOPE_SUCCESS     \
   ATTR_MAYBE_UNUSED const \
@@ -283,3 +310,5 @@ scope_succes<T> operator+(scope_succes_tag, T&& action) noexcept(noexcept(scope_
 
 #define MAKE_DEFER(name) MAKE_SCOPE_EXIT(name)
 #define DEFER SCOPE_EXIT
+
+#endif // NEARGYE_SCOPE_GUARD_HPP

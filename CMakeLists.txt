@@ -9,7 +9,7 @@ else()
 endif()
 
 option(SCOPE_GUARD_OPT_BUILD_EXAMPLES "Build scope_guard examples" ${IS_TOPLEVEL_PROJECT})
-option(SCOPE_GUARD_OPT_BUILD_TESTS "Build and perform scope_guard tests" OFF)
+option(SCOPE_GUARD_OPT_BUILD_TESTS "Build and perform scope_guard tests" ${IS_TOPLEVEL_PROJECT})
 
 if(SCOPE_GUARD_OPT_BUILD_EXAMPLES)
     add_subdirectory(example)

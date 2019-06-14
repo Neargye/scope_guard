@@ -8,7 +8,7 @@ else()
     set(IS_TOPLEVEL_PROJECT FALSE)
 endif()
 
-option(SCOPE_GUARD_OPT_BUILD_EXAMPLES "Build scope_guard examples" IS_TOPLEVEL_PROJECT)
+option(SCOPE_GUARD_OPT_BUILD_EXAMPLES "Build scope_guard examples" ${IS_TOPLEVEL_PROJECT})
 option(SCOPE_GUARD_OPT_BUILD_TESTS "Build and perform scope_guard tests" OFF)
 
 if(SCOPE_GUARD_OPT_BUILD_EXAMPLES)

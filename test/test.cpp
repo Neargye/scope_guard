@@ -28,8 +28,6 @@
 
 #include <scope_guard.hpp>
 
-#include <cstddef>
-#include <fstream>
 #include <stdexcept>
 
 struct ExecutionCounter {
@@ -126,7 +124,7 @@ TEST_CASE("dismiss before scope leave") {
 
     REQUIRE_NOTHROW([&]() {
       MAKE_SCOPE_EXIT(sg){ m.Execute(); };
-      sg.Dismiss();
+      sg.dismiss();
     }());
   }
 
@@ -137,7 +135,7 @@ TEST_CASE("dismiss before scope leave") {
 
     REQUIRE_NOTHROW([&]() {
       MAKE_SCOPE_FAIL(sg){ m.Execute(); };
-      sg.Dismiss();
+      sg.dismiss();
     }());
   }
 
@@ -148,7 +146,7 @@ TEST_CASE("dismiss before scope leave") {
 
     REQUIRE_NOTHROW([&]() {
       MAKE_SCOPE_SUCCESS(sg){ m.Execute(); };
-      sg.Dismiss();
+      sg.dismiss();
     }());
   }
 }
@@ -162,7 +160,7 @@ TEST_CASE("dismiss before exception") {
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_EXIT(sg){ m.Execute(); };
 
-      sg.Dismiss();
+      sg.dismiss();
 
       throw std::exception{};
     }());
@@ -176,7 +174,7 @@ TEST_CASE("dismiss before exception") {
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_FAIL(sg){ m.Execute(); };
 
-      sg.Dismiss();
+      sg.dismiss();
 
       throw std::exception{};
     }());
@@ -190,7 +188,7 @@ TEST_CASE("dismiss before exception") {
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_SUCCESS(sg){ m.Execute(); };
 
-      sg.Dismiss();
+      sg.dismiss();
 
       throw std::exception{};
     }());
@@ -208,7 +206,7 @@ TEST_CASE("called on exception, dismiss after exception") {
 
       throw std::exception{};
 
-      sg.Dismiss();
+      sg.dismiss();
     }());
   }
 
@@ -222,7 +220,7 @@ TEST_CASE("called on exception, dismiss after exception") {
 
       throw std::exception{};
 
-      sg.Dismiss();
+      sg.dismiss();
     }());
   }
 
@@ -236,7 +234,7 @@ TEST_CASE("called on exception, dismiss after exception") {
 
       throw std::exception{};
 
-      sg.Dismiss();
+      sg.dismiss();
     }());
   }
 }

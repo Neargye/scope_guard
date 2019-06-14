@@ -147,42 +147,21 @@ class scope_guard final {
   scope_guard(const scope_guard&) = delete;
   scope_guard& operator=(const scope_guard&) = delete;
   scope_guard& operator=(scope_guard&&) = delete;
-  void* operator new(std::size_t) = delete;
-  void operator delete(void*) = delete;
 
-  scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
+  scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value || std::is_nothrow_copy_constructible<A>::value)
       : policy_(false),
-        action_(std::move(other.action_)) {
+        action_(std::move_if_noexcept(other.action_)) {
     policy_ = std::move(other.policy_);
     other.policy_.dismiss();
   }
 
-  explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value) try
+  explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_(true),
-        action_(std::move(action)) {
-    }
-    catch (...) {
-      std::forward<A>(action)();
-      throw;
-    }
+        action_(std::move(action)) {}
 
-  explicit scope_guard(const A& action) noexcept(std::is_nothrow_move_constructible<A>::value) try
+  explicit scope_guard(const A& action) noexcept(std::is_nothrow_copy_constructible<A>::value)
       : policy_(true),
-        action_(std::move(action)) {
-    }
-    catch (...) {
-      action();
-      throw;
-    }
-
-  explicit scope_guard(A& action) noexcept(std::is_nothrow_move_constructible<A>::value) try
-      : policy_(true),
-        action_(std::move(action)) {
-    }
-    catch (...) {
-      action();
-      throw;
-    }
+        action_(action) {}
 
   void dismiss() noexcept {
     policy_.dismiss();
@@ -200,33 +179,63 @@ class scope_guard final {
   }
 
  private:
-   P policy_;
-   A action_;
+  P policy_;
+  A action_;
+
+  void* operator new(std::size_t) = delete;
+  void operator delete(void*) = delete;
 };
 
-} // namespace detail
+} // namespace scope_guard::detail
 
 template <typename F>
 using scope_exit = detail::scope_guard<F, detail::on_exit_policy>;
 
 template <typename F>
-scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
-  return scope_exit<F>(std::forward<F>(action));
-}
-
-template <typename F>
 using scope_fail = detail::scope_guard<F, detail::on_fail_policy>;
-
-template <typename F>
-scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
-  return scope_fail<F>(std::forward<F>(action));
-}
 
 template <typename F>
 using scope_succes = detail::scope_guard<F, detail::on_success_policy>;
 
+// ATTR_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
+#if !defined(ATTR_NODISCARD)
+#  if defined(__clang__)
+#    if (__clang_major__ * 10 + __clang_minor__) >= 39 && __cplusplus >= 201703L
+#      define ATTR_NODISCARD [[nodiscard]]
+#    else
+#      define ATTR_NODISCARD __attribute__((__warn_unused_result__))
+#    endif
+#  elif defined(__GNUC__)
+#    if __GNUC__ >= 7 && __cplusplus >= 201703L
+#      define ATTR_NODISCARD [[nodiscard]]
+#    else
+#      define ATTR_NODISCARD __attribute__((__warn_unused_result__))
+#    endif
+#  elif defined(_MSC_VER)
+#    if _MSC_VER >= 1911 && defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
+#      define ATTR_NODISCARD [[nodiscard]]
+#    elif defined(_Check_return_)
+#      define ATTR_NODISCARD _Check_return_
+#    else
+#      define ATTR_NODISCARD
+#    endif
+#  else
+#    define ATTR_NODISCARD
+#  endif
+#endif
+
 template <typename F>
-scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
+ATTR_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
+  return scope_exit<F>(std::forward<F>(action));
+}
+
+template <typename F>
+ATTR_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
+  return scope_fail<F>(std::forward<F>(action));
+}
+
+template <typename F>
+ATTR_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
   return scope_succes<F>(std::forward<F>(action));
 }
 
@@ -252,7 +261,8 @@ template <typename F>
 scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
   return scope_succes<F>(std::forward<F>(action));
 }
-} // namespace detail
+
+} // namespace scope_guard::detail
 
 } // namespace scope_guard
 

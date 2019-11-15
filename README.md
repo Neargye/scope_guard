@@ -35,28 +35,35 @@ Program control transferring does not influence Scope Guard statement execution.
 * Thin callback wrapping, no added std::function or virtual table penalties
 * No implicitly ignored return, check callback return void
 * Defer or Scope Guard syntax
+* With syntax
 
 ## [Examples](example/example.cpp)
 
 * scope_exit
-
-```cpp
-std::fstream file("test.txt");
-SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
-```
+  ```cpp
+  std::fstream file("test.txt");
+  SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
+  ```
 
 * Custom scope_exit
+  ```cpp
+  persons.push_back(person); // Add the person to db.
+  MAKE_SCOPE_EXIT(scope_exit){ // Following block is executed when exit the enclosing scope or errors occure.
+    persons.pop_back(); // If the db insertion fails, we should roll back.
+  };
+  // make_scope_exit(A&& action) - function is used to create a new scope_exit object. It can be instantiated with a lambda function, a std::function<void()>, a functor, or a void(*)() function pointer.
+  // auto scope_exit = make_scope_exit([]{ persons.pop_back(); });
+  // ...
+  scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
+  ```
 
-```cpp
-persons.push_back(person); // Add the person to db.
-MAKE_SCOPE_EXIT(scope_exit){ // Following block is executed when exit the enclosing scope or errors occure.
-  persons.pop_back(); // If the db insertion fails, we should roll back.
-};
-// make_scope_exit(A&& action) - function is used to create a new scope_exit object. It can be instantiated with a lambda function, a std::function<void()>, a functor, or a void(*)() function pointer.
-// auto scope_exit = make_scope_exit([]{ persons.pop_back(); });
-// ...
-scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
-```
+* With scope_exit
+  ```cpp
+  std::fstream file("test.txt");
+  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occure.
+    // ...
+  };
+  ```
 
 ## Synopsis
 
@@ -77,18 +84,17 @@ scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope
 ### Remarks
 
 * If multiple Scope Guard statements appear in the same scope, the order they appear is the reverse of the order they are executed.
-
-```cpp
-void f() {
-  SCOPE_EXIT{ std::cout << "First" << std::endl; };
-  SCOPE_EXIT{ std::cout << "Second" << std::endl; };
-  SCOPE_EXIT{ std::cout << "Third" << std::endl; };
-  ... // Other code.
-  // Prints "Third".
-  // Prints "Second".
-  // Prints "First".
-}
-```
+  ```cpp
+  void f() {
+    SCOPE_EXIT{ std::cout << "First" << std::endl; };
+    SCOPE_EXIT{ std::cout << "Second" << std::endl; };
+    SCOPE_EXIT{ std::cout << "Third" << std::endl; };
+    ... // Other code.
+    // Prints "Third".
+    // Prints "Second".
+    // Prints "First".
+  }
+  ```
 
 ## Integration
 
@@ -96,15 +102,14 @@ You should add required file [scope_guard.hpp](include/scope_guard.hpp).
 
 ## Compiler compatibility
 
-* Clang/LLVM >= 3.6
+* Clang/LLVM >= 5
 * Visual C++ >= 14 / Visual Studio >= 2015
-* Xcode >= 7
-* GCC >= 4.8
+* Xcode >= 8
+* GCC >= 5
 
 ## References
 
-[Andrei Alexandrescu "Systematic Error Handling in C++"](https://channel9.msdn.com/Shows/Going+Deep/C-and-Beyond-2012-Andrei-Alexandrescu-Systematic-Error-Handling-in-C)
-
-[Andrei Alexandrescu “Declarative Control Flow"](https://youtu.be/WjTrfoiB0MQ)
+* [Andrei Alexandrescu "Systematic Error Handling in C++"](https://channel9.msdn.com/Shows/Going+Deep/C-and-Beyond-2012-Andrei-Alexandrescu-Systematic-Error-Handling-in-C)
+* [Andrei Alexandrescu “Declarative Control Flow"](https://youtu.be/WjTrfoiB0MQ)
 
 ## Licensed under the [MIT License](LICENSE)

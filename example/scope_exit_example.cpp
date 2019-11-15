@@ -45,7 +45,11 @@ int main() {
       std::cout << "[1] close file #2" << std::endl;
     });
 
-    file << "[1] example" << std::endl;
+    WITH_SCOPE_EXIT({ std::cout << "[1] leave WITH_SCOPE_EXIT" << std::endl; }) {
+      std::cout << "[1] inside WITH_SCOPE_EXIT" << std::endl;
+    }
+
+    file << "example" << std::endl;
     std::cout << "[1] write to file" << std::endl;
 
     scope_exit_1.dismiss();
@@ -72,6 +76,8 @@ int main() {
 
   return 0;
 
+  // prints "[1] inside WITH_SCOPE_EXIT".
+  // prints "[1] leave WITH_SCOPE_EXIT".
   // prints "[1] write to file".
   // prints "[1] close file #2".
   // prints "[1] close file".

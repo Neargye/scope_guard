@@ -43,7 +43,11 @@ int main() {
       std::cout << "[1] error write file #2" << std::endl;
     });
 
-    file << "[1] example" << std::endl;
+    WITH_SCOPE_FAIL({ std::cout << "[1] leave WITH_SCOPE_FAIL" << std::endl; }) {
+      std::cout << "[1] inside WITH_SCOPE_FAIL" << std::endl;
+    }
+
+    file << "example" << std::endl;
     std::cout << "[1] write to file" << std::endl;
 
     scope_fail_1.dismiss();
@@ -70,6 +74,7 @@ int main() {
 
   return 0;
 
+  // prints "[1] inside WITH_SCOPE_FAIL".
   // prints "[1] write to file".
   // prints "[1] error write file #2".
   // prints "[1] error write file".

@@ -43,6 +43,10 @@ int main() {
       std::cout << "[1] file write succes" << std::endl;
     });
 
+    WITH_SCOPE_SUCCESS({ std::cout << "[1] leave WITH_SCOPE_SUCCESS" << std::endl; }) {
+      std::cout << "[1] inside WITH_SCOPE_SUCCESS" << std::endl;
+    }
+
     file << "example" << std::endl;
     std::cout << "[1] write to file" << std::endl;
     file.close();
@@ -68,6 +72,8 @@ int main() {
 
   return 0;
 
+  // prints "[1] inside WITH_SCOPE_SUCCESS".
+  // prints "[1] leave WITH_SCOPE_SUCCESS".
   // prints "[1] write to file".
   // prints "[1] error".
   // prints "[2] write to file".

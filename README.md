@@ -39,25 +39,45 @@ Program control transferring does not influence Scope Guard statement execution.
 
 ## [Examples](example/example.cpp)
 
-* scope_exit
+* Scope Guard on exit
   ```cpp
   std::fstream file("test.txt");
   SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
   ```
 
-* Custom scope_exit
+* Scope Guard on fail
   ```cpp
   persons.push_back(person); // Add the person to db.
-  MAKE_SCOPE_EXIT(scope_exit){ // Following block is executed when exit the enclosing scope or errors occure.
+  SCOPE_EXIT{ persons.pop_back(); }; // If the errors occure, we should roll back.
+  ```
+
+* Scope Guard on succes
+  ```cpp
+  person = new Person{/*...*/};
+  // ...
+  SCOPE_SUCCESS{ persons.push_back(person); }; // If no errors occure, we should add the person to db.
+  ```
+
+* Custom Scope Guard
+  ```cpp
+  persons.push_back(person); // Add the person to db.
+
+  MAKE_SCOPE_EXIT(scope_exit) { // Following block is executed when exit the enclosing scope or errors occure.
     persons.pop_back(); // If the db insertion fails, we should roll back.
   };
+  // MAKE_SCOPE_EXIT(name) {action} - macro is used to create a new scope_exit object.
+  scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
+  ```
+  ```cpp
+  persons.push_back(person); // Add the person to db.
+
+  auto scope_exit = make_scope_exit([]() { persons.pop_back(); });
   // make_scope_exit(A&& action) - function is used to create a new scope_exit object. It can be instantiated with a lambda function, a std::function<void()>, a functor, or a void(*)() function pointer.
-  // auto scope_exit = make_scope_exit([]{ persons.pop_back(); });
   // ...
   scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
   ```
 
-* With scope_exit
+* With Scope Guard
   ```cpp
   std::fstream file("test.txt");
   WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occure.
@@ -66,6 +86,28 @@ Program control transferring does not influence Scope Guard statement execution.
   ```
 
 ## Synopsis
+
+### Reference
+
+* `SCOPE_EXIT{action};`
+* `MAKE_SCOPE_EXIT(name) {action};`
+* `WITH_SCOPE_EXIT({action}) {/*...*/};`
+
+* `SCOPE_FAIL{action};`
+* `MAKE_SCOPE_FAIL(name) {action};`
+* `WITH_SCOPE_FAIL({action}) {/*...*/};`
+
+* `SCOPE_SUCCESS{action};`
+* `MAKE_SCOPE_SUCCESS(name) {action};`
+* `WITH_SCOPE_SUCCESS({action}) {/*...*/};`
+
+* `DEFER{action};`
+* `MAKE_DEFER(name) {action};`
+* `WITH_DEFER({action}) {/*...*/};`
+
+* `scope_exit<F> make_scope_exit(F&& action);`
+* `scope_fail<F> make_scope_fail(F&& action);`
+* `scope_succes<F> make_scope_succes(F&& action);`
 
 ### Interface of scope_guard
 

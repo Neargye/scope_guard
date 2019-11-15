@@ -139,7 +139,7 @@ class scope_guard {
   using is_nothrow_invocable_action = std::integral_constant<bool, noexcept((std::declval<A>())())>;
 
   static_assert(std::is_same<void, invoke_action_result_t>::value,
-                "scope_guard requires no-argument action returns void.");
+                "scope_guard requires no-argument action that returns void.");
   static_assert(std::is_same<P, on_exit_policy>::value || std::is_same<P, on_fail_policy>::value || std::is_same<P, on_success_policy>::value,
                 "scope_guard requires on_exit_policy, on_fail_policy or on_success_policy.");
 
@@ -175,7 +175,7 @@ class scope_guard {
 
   ~scope_guard() __SCOPE_GUARD_NOEXCEPT(is_nothrow_invocable_action::value) {
 #if defined(SCOPE_GUARD_NO_EXCEPTIONS)
-    static_assert(is_nothrow_invocable_action::value, "scope_guard requires noexcept action");
+    static_assert(is_nothrow_invocable_action::value, "scope_guard requires noexcept action.");
 #endif
     if (policy_.should_execute()) {
       __SCOPE_GUARD_TRY

@@ -224,17 +224,17 @@ using scope_succes = detail::scope_guard<F, detail::on_success_policy>;
 #endif
 
 template <typename F>
-ATTR_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(std::is_nothrow_move_constructible<F>::value) {
+ATTR_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
   return scope_exit<F>{std::forward<F>(action)};
 }
 
 template <typename F>
-ATTR_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(std::is_nothrow_move_constructible<F>::value) {
+ATTR_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
   return scope_fail<F>{std::forward<F>(action)};
 }
 
 template <typename F>
-ATTR_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(std::is_nothrow_move_constructible<F>::value) {
+ATTR_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
   return scope_succes<F>{std::forward<F>(action)};
 }
 
@@ -243,21 +243,21 @@ namespace detail {
 struct scope_exit_tag {};
 
 template <typename F>
-scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(std::is_nothrow_move_constructible<F>::value) {
+scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
   return scope_exit<F>{std::forward<F>(action)};
 }
 
 struct scope_fail_tag {};
 
 template <typename F>
-scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(std::is_nothrow_move_constructible<F>::value) {
+scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
   return scope_fail<F>{std::forward<F>(action)};
 }
 
 struct scope_succes_tag {};
 
 template <typename F>
-scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(std::is_nothrow_move_constructible<F>::value) {
+scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
   return scope_succes<F>{std::forward<F>(action)};
 }
 

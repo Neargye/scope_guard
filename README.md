@@ -115,13 +115,15 @@ Program control transferring does not influence Scope Guard statement execution.
 
 #### Throwable settings:
 
-* `SCOPE_GUARD_MAY_EXCEPTIONS` define this to action may throw exceptions.
+* `SCOPE_GUARD_NOTHROW_CONSTRUCTIBLE` define this to require nothrow constructible action.
 
-* `SCOPE_GUARD_NO_EXCEPTIONS` define this to require noexcept action.
+* `SCOPE_GUARD_MAY_THROW_ACTION` define this to action may throw exceptions.
 
-* `SCOPE_GUARD_SUPPRESS_EXCEPTIONS` define this to exceptions during action will be suppressed.
+* `SCOPE_GUARD_NO_THROW_ACTION` define this to require noexcept action.
 
-* By default using `SCOPE_GUARD_MAY_EXCEPTIONS`.
+* `SCOPE_GUARD_SUPPRESS_THROW_ACTIONS` define this to exceptions during action will be suppressed.
+
+* By default using `SCOPE_GUARD_MAY_THROW_ACTION`.
 
 ### Remarks
 

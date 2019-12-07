@@ -41,23 +41,24 @@
 #endif
 
 // scope_guard throwable settings:
-// SCOPE_GUARD_MAY_EXCEPTIONS action may throw exceptions.
-// SCOPE_GUARD_NO_EXCEPTIONS requires noexcept action.
-// SCOPE_GUARD_SUPPRESS_EXCEPTIONS exceptions during action will be suppressed.
+// SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE requires nothrow constructible action.
+// SCOPE_GUARD_MAY_THROW_ACTION action may throw exceptions.
+// SCOPE_GUARD_NO_THROW_ACTION requires noexcept action.
+// SCOPE_GUARD_SUPPRESS_THROW_ACTIONS exceptions during action will be suppressed.
 
-#if !defined(SCOPE_GUARD_MAY_EXCEPTIONS) && !defined(SCOPE_GUARD_NO_EXCEPTIONS) && !defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS)
-#  define SCOPE_GUARD_MAY_EXCEPTIONS
-#elif (defined(SCOPE_GUARD_MAY_EXCEPTIONS) + defined(SCOPE_GUARD_NO_EXCEPTIONS) + defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS)) > 1
-#  error Only one of SCOPE_GUARD_MAY_EXCEPTIONS and SCOPE_GUARD_NO_EXCEPTIONS and SCOPE_GUARD_SUPPRESS_EXCEPTIONS may be defined.
+#if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTIONS)
+#  define SCOPE_GUARD_MAY_THROW_ACTION
+#elif (defined(SCOPE_GUARD_MAY_THROW_ACTION) + defined(SCOPE_GUARD_NO_THROW_ACTION) + defined(SCOPE_GUARD_SUPPRESS_THROW_ACTIONS)) > 1
+#  error Only one of SCOPE_GUARD_MAY_THROW_ACTION and SCOPE_GUARD_NO_THROW_ACTION and SCOPE_GUARD_SUPPRESS_THROW_ACTIONS may be defined.
 #endif
 
-#if defined(SCOPE_GUARD_NO_EXCEPTIONS)
+#if defined(SCOPE_GUARD_NO_THROW_ACTION)
 #  define __SCOPE_GUARD_ACTION_NOEXCEPT noexcept
 #else
 #  define __SCOPE_GUARD_ACTION_NOEXCEPT
 #endif
 
-#if defined(SCOPE_GUARD_SUPPRESS_EXCEPTIONS) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTIONS) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 #  define __SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define __SCOPE_GUARD_TRY try {
 #  define __SCOPE_GUARD_CATCH } catch (...) {}
@@ -139,9 +140,17 @@ class scope_guard {
   using is_nothrow_invocable_action = std::integral_constant<bool, noexcept((std::declval<A>())())>;
 
   static_assert(std::is_same<void, invoke_action_result_t>::value,
-                "scope_guard requires no-argument action that returns void.");
+                "scope_guard requires no-argument action, that returns void.");
   static_assert(std::is_same<P, on_exit_policy>::value || std::is_same<P, on_fail_policy>::value || std::is_same<P, on_success_policy>::value,
                 "scope_guard requires on_exit_policy, on_fail_policy or on_success_policy.");
+#if defined(SCOPE_GUARD_NO_THROW_ACTION)
+    static_assert(is_nothrow_invocable_action::value,
+                  "scope_guard requires noexcept invocable action.");
+#endif
+#if defined(SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE)
+  static_assert(std::is_nothrow_move_constructible<A>::value,
+                "scope_guard requires nothrow constructible action.");
+#endif
 
   P policy_;
   A action_;
@@ -155,13 +164,6 @@ class scope_guard {
   scope_guard& operator=(const scope_guard&) = delete;
   scope_guard& operator=(scope_guard&&) = delete;
 
-  explicit scope_guard(const A& action) = delete;
-  explicit scope_guard(A& action) = delete;
-
-  explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
-      : policy_{true},
-        action_{std::move(action)} {}
-
   scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{false},
         action_{std::move(other.action_)} {
@@ -169,14 +171,18 @@ class scope_guard {
     other.policy_.dismiss();
   }
 
+  explicit scope_guard(const A& action) = delete;
+  explicit scope_guard(A& action) = delete;
+
+  explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
+      : policy_{true},
+        action_{std::move(action)} {}
+
   void dismiss() noexcept {
     policy_.dismiss();
   }
 
   ~scope_guard() __SCOPE_GUARD_NOEXCEPT(is_nothrow_invocable_action::value) {
-#if defined(SCOPE_GUARD_NO_EXCEPTIONS)
-    static_assert(is_nothrow_invocable_action::value, "scope_guard requires noexcept action.");
-#endif
     if (policy_.should_execute()) {
       __SCOPE_GUARD_TRY
         action_();

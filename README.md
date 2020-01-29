@@ -40,18 +40,21 @@ Program control transferring does not influence Scope Guard statement execution.
 ## [Examples](example/example.cpp)
 
 * Scope Guard on exit
+
   ```cpp
   std::fstream file("test.txt");
   SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
   ```
 
 * Scope Guard on fail
+
   ```cpp
   persons.push_back(person); // Add the person to db.
   SCOPE_EXIT{ persons.pop_back(); }; // If the errors occure, we should roll back.
   ```
 
 * Scope Guard on succes
+
   ```cpp
   person = new Person{/*...*/};
   // ...
@@ -59,6 +62,7 @@ Program control transferring does not influence Scope Guard statement execution.
   ```
 
 * Custom Scope Guard
+
   ```cpp
   persons.push_back(person); // Add the person to db.
 
@@ -68,6 +72,7 @@ Program control transferring does not influence Scope Guard statement execution.
   // MAKE_SCOPE_EXIT(name) {action} - macro is used to create a new scope_exit object.
   scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
   ```
+
   ```cpp
   persons.push_back(person); // Add the person to db.
 
@@ -78,6 +83,7 @@ Program control transferring does not influence Scope Guard statement execution.
   ```
 
 * With Scope Guard
+
   ```cpp
   std::fstream file("test.txt");
   WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occure.
@@ -113,7 +119,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
 * `dismiss()` - dismiss executing action on scope exit.
 
-#### Throwable settings:
+#### Throwable settings
 
 * `SCOPE_GUARD_NOTHROW_CONSTRUCTIBLE` define this to require nothrow constructible action.
 
@@ -128,6 +134,7 @@ Program control transferring does not influence Scope Guard statement execution.
 ### Remarks
 
 * If multiple Scope Guard statements appear in the same scope, the order they appear is the reverse of the order they are executed.
+
   ```cpp
   void f() {
     SCOPE_EXIT{ std::cout << "First" << std::endl; };

@@ -133,18 +133,32 @@ class on_success_policy {
   }
 };
 
+template <typename T, typename = void>
+struct is_noarg_returns_void_action
+    : std::false_type {};
+
+template <typename T>
+struct is_noarg_returns_void_action<T, decltype((std::declval<T>())())>
+    : std::true_type {};
+
+template <typename T, bool = is_noarg_returns_void_action<T>::value>
+struct is_nothrow_invocable_action
+    : std::false_type {};
+
+template <typename T>
+struct is_nothrow_invocable_action<T, true>
+    : std::integral_constant<bool, noexcept((std::declval<T>())())> {};
+
 template <typename F, typename P>
 class scope_guard {
   using A = typename std::decay<F>::type;
-  using invoke_action_result_t = decltype((std::declval<A>())());
-  using is_nothrow_invocable_action = std::integral_constant<bool, noexcept((std::declval<A>())())>;
 
-  static_assert(std::is_same<void, invoke_action_result_t>::value,
+  static_assert(is_noarg_returns_void_action<A>::value,
                 "scope_guard requires no-argument action, that returns void.");
   static_assert(std::is_same<P, on_exit_policy>::value || std::is_same<P, on_fail_policy>::value || std::is_same<P, on_success_policy>::value,
                 "scope_guard requires on_exit_policy, on_fail_policy or on_success_policy.");
 #if defined(SCOPE_GUARD_NO_THROW_ACTION)
-    static_assert(is_nothrow_invocable_action::value,
+    static_assert(is_nothrow_invocable_action<A>::value,
                   "scope_guard requires noexcept invocable action.");
 #endif
 #if defined(SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE)
@@ -182,7 +196,7 @@ class scope_guard {
     policy_.dismiss();
   }
 
-  ~scope_guard() __SCOPE_GUARD_NOEXCEPT(is_nothrow_invocable_action::value) {
+  ~scope_guard() __SCOPE_GUARD_NOEXCEPT(is_nothrow_invocable_action<A>::value) {
     if (policy_.should_execute()) {
       __SCOPE_GUARD_TRY
         action_();
@@ -227,38 +241,38 @@ using scope_succes = scope_guard<F, on_success_policy>;
 #  endif
 #endif
 
-template <typename F>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 ATTR_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{std::forward<F>(action)})) {
   return scope_exit<F>{std::forward<F>(action)};
 }
 
-template <typename F>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 ATTR_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{std::forward<F>(action)})) {
   return scope_fail<F>{std::forward<F>(action)};
 }
 
-template <typename F>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 ATTR_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
   return scope_succes<F>{std::forward<F>(action)};
 }
 
 struct scope_exit_tag {};
 
-template <typename F>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{std::forward<F>(action)})) {
   return scope_exit<F>{std::forward<F>(action)};
 }
 
 struct scope_fail_tag {};
 
-template <typename F>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{std::forward<F>(action)})) {
   return scope_fail<F>{std::forward<F>(action)};
 }
 
 struct scope_succes_tag {};
 
-template <typename F>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
   return scope_succes<F>{std::forward<F>(action)};
 }

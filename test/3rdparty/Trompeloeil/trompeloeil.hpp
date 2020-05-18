@@ -3,6 +3,7 @@
  *
  * Copyright Björn Fahller 2014-2019
  * Copyright (C) 2017, 2018 Andrew Paxie
+ * Copyright Tore Martin Hagen 2019
  *
  *  Use, modification and distribution is subject to the
  *  Boost Software License, Version 1.0. (See accompanying
@@ -149,8 +150,17 @@
   TROMPELOEIL_IDENTITY(TROMPELOEIL_ARG16(__VA_ARGS__,                          \
                                          15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0))
 
+#if defined(_MSC_VER)
+
+#define TROMPELOEIL_CONCAT_(x, y, ...) x ## y __VA_ARGS__
+#define TROMPELOEIL_CONCAT(x, ...) TROMPELOEIL_CONCAT_(x, __VA_ARGS__)
+
+#else /* defined(_MSC_VER) */
+
 #define TROMPELOEIL_CONCAT_(x, ...) x ## __VA_ARGS__
 #define TROMPELOEIL_CONCAT(x, ...) TROMPELOEIL_CONCAT_(x, __VA_ARGS__)
+
+#endif /* !defined(_MSC_VER) */
 
 #define TROMPELOEIL_REMOVE_PAREN(...) TROMPELOEIL_CONCAT(TROMPELOEIL_CLEAR_,   \
   TROMPELOEIL_REMOVE_PAREN_INTERNAL __VA_ARGS__)
@@ -759,6 +769,8 @@ namespace trompeloeil
                                            unsigned long line,
                                            std::string const &msg)>;
 
+  using ok_reporter_func = std::function<void(char const *msg)>;
+
   inline
   void
   default_reporter(
@@ -776,10 +788,25 @@ namespace trompeloeil
   }
 
   inline
+  void
+  default_ok_reporter(char const* /*msg*/)
+  {
+    /* OK reporter defaults to doing nothing. */
+  }
+
+  inline
   reporter_func&
   reporter_obj()
   {
     static reporter_func obj = default_reporter;
+    return obj;
+  }
+
+  inline
+  ok_reporter_func&
+  ok_reporter_obj()
+  {
+    static ok_reporter_func obj = default_ok_reporter;
     return obj;
   }
 
@@ -789,6 +816,18 @@ namespace trompeloeil
     reporter_func f)
   {
     return detail::exchange(reporter_obj(), std::move(f));
+  }
+
+  inline
+  std::pair<reporter_func, ok_reporter_func>
+  set_reporter(
+    reporter_func rf,
+    ok_reporter_func orf)
+  {
+    return {
+      set_reporter(rf),
+      detail::exchange(ok_reporter_obj(), std::move(orf))
+    };
   }
 
   class tracer;
@@ -872,6 +911,14 @@ namespace trompeloeil
   }
 
   template <typename T>
+  void
+  send_ok_report(
+    std::string const &msg)
+  {
+    reporter<T>::sendOk(msg.c_str());
+  }
+
+  template <typename T>
   struct reporter
   {
     static
@@ -881,6 +928,12 @@ namespace trompeloeil
       char const *file,
       unsigned long line,
       char const *msg);
+
+    static
+    void
+    sendOk(
+      char const *msg);
+
   };
 
   template <typename T>
@@ -892,6 +945,13 @@ namespace trompeloeil
       char const *msg)
     {
       reporter_obj()(s, file, line, msg);
+    }
+
+  template <typename T>
+  void reporter<T>::
+    sendOk(char const* msg)
+    {
+      ok_reporter_obj()(msg);
     }
 
   template <typename ... T>
@@ -1053,25 +1113,54 @@ template <typename T>
     char fill;
   };
 
+  struct indirect_null {
+#if !TROMPELOEIL_CLANG
+    template <
+      typename T,
+      typename = detail::enable_if_t<!std::is_constructible<T, std::nullptr_t>::value>
+    >
+    operator T&&() const = delete;
+#endif
+#if TROMPELOEIL_GCC
+
+    template <typename T, typename C, typename ... As>
+    using memfunptr = T (C::*)(As...);
+
+    template <typename T>
+    operator T*() const;
+    template <typename T, typename C>
+    operator T C::*() const;
+    template <typename T, typename C, typename ... As>
+    operator memfunptr<T,C,As...>() const;
+#endif /* TROMPELOEIL_GCC */
+    operator std::nullptr_t() const;
+  };
+
   template <typename T, typename U>
-  using equality_comparison = decltype((std::declval<T>() == std::declval<U>())
+  using equality_comparison = decltype((std::declval<T const&>() == std::declval<U const&>())
                                        ? true
                                        : false);
 
   template <typename T, typename U>
   using is_equal_comparable = is_detected<equality_comparison, T, U>;
 
+#if defined(_MSC_VER) && (_MSC_VER < 1910)
   template <typename T>
   using is_null_comparable = is_equal_comparable<T, std::nullptr_t>;
+#else
+  template <typename T>
+  using is_null_comparable = is_equal_comparable<T, indirect_null>;
+#endif
 
   template <typename T>
   inline
   constexpr
-  bool
+  auto
   is_null(
     T const &t,
     std::true_type)
-  noexcept(noexcept(std::declval<const T&>() == nullptr))
+  noexcept(noexcept(std::declval<T const&>() == nullptr))
+  -> decltype(t == nullptr)
   {
     return t == nullptr;
   }
@@ -1238,6 +1327,15 @@ template <typename T>
     {
       streamer<T>::print(os, t);
     }
+  }
+
+  inline
+  void
+  print(
+      std::ostream& os,
+      std::nullptr_t)
+  {
+    os << "nullptr";
   }
 
   inline
@@ -1430,9 +1528,13 @@ template <typename T>
 
   template <typename T, typename Disposer>
   class list<T, Disposer>::iterator
-    : public std::iterator<std::bidirectional_iterator_tag, T>
   {
     friend class list<T, Disposer>;
+    typedef std::bidirectional_iterator_tag iterator_category;
+    typedef T value_type;
+    typedef std::ptrdiff_t difference_type;
+    typedef T* pointer;
+    typedef T& reference;
   public:
     iterator()
     noexcept
@@ -2184,7 +2286,7 @@ template <typename T>
         T const&)
       const
       {
-          return !::trompeloeil::is_null(str.c_str())
+          return str.c_str()
                  && std::regex_search(str.c_str(), re, match_type);
       }
 
@@ -3003,6 +3105,17 @@ template <typename T>
   }
 
   template <typename Sig>
+  void
+  report_match(
+    call_matcher_list <Sig> &matcher_list)
+  {
+    if(! matcher_list.empty())
+    {
+        send_ok_report<specialized>((matcher_list.begin())->name);
+    }
+  }
+
+  template <typename Sig>
   class return_handler
   {
   public:
@@ -3326,12 +3439,13 @@ template <typename T>
         try
         {
           h(p);
+          abort();
         }
         catch (...)
         {
           throw;
         }
-        return R();
+        return default_return<R>(); // unreachable code
       }
 
     private:
@@ -3929,6 +4043,9 @@ template <typename T>
                       func_name + std::string(" with signature ") + sig_name,
                       param_value);
     }
+    else{
+        report_match(e.active);
+    }
     trace_agent ta{i->loc, i->name, tracer_obj()};
     try
     {
@@ -4286,7 +4403,7 @@ template <typename T>
   }                                                                            \
                                                                                \
   ::trompeloeil::return_of_t<TROMPELOEIL_REMOVE_PAREN(sig)>                    \
-  name(TROMPELOEIL_PARAM_LIST(num, TROMPELOEIL_REMOVE_PAREN(sig)))             \
+  name(TROMPELOEIL_PARAM_LIST(num, sig))                                       \
   constness                                                                    \
   spec                                                                         \
   {                                                                            \

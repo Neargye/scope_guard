@@ -171,8 +171,8 @@ class scope_guard {
     other.policy_.dismiss();
   }
 
-  explicit scope_guard(const A& action) = delete;
-  explicit scope_guard(A& action) = delete;
+  scope_guard(const A& action) = delete;
+  scope_guard(A& action) = delete;
 
   explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{true},
@@ -191,16 +191,14 @@ class scope_guard {
   }
 };
 
-} // namespace scope_guard::detail
+template <typename F>
+using scope_exit = scope_guard<F, on_exit_policy>;
 
 template <typename F>
-using scope_exit = detail::scope_guard<F, detail::on_exit_policy>;
+using scope_fail = scope_guard<F, on_fail_policy>;
 
 template <typename F>
-using scope_fail = detail::scope_guard<F, detail::on_fail_policy>;
-
-template <typename F>
-using scope_succes = detail::scope_guard<F, detail::on_success_policy>;
+using scope_succes = scope_guard<F, on_success_policy>;
 
 // ATTR_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
 #if !defined(ATTR_NODISCARD)
@@ -230,44 +228,46 @@ using scope_succes = detail::scope_guard<F, detail::on_success_policy>;
 #endif
 
 template <typename F>
-ATTR_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
+ATTR_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{std::forward<F>(action)})) {
   return scope_exit<F>{std::forward<F>(action)};
 }
 
 template <typename F>
-ATTR_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
+ATTR_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{std::forward<F>(action)})) {
   return scope_fail<F>{std::forward<F>(action)};
 }
 
 template <typename F>
-ATTR_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
+ATTR_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
   return scope_succes<F>{std::forward<F>(action)};
 }
-
-namespace detail {
 
 struct scope_exit_tag {};
 
 template <typename F>
-scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>(std::forward<F>(action)))) {
+scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{std::forward<F>(action)})) {
   return scope_exit<F>{std::forward<F>(action)};
 }
 
 struct scope_fail_tag {};
 
 template <typename F>
-scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>(std::forward<F>(action)))) {
+scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{std::forward<F>(action)})) {
   return scope_fail<F>{std::forward<F>(action)};
 }
 
 struct scope_succes_tag {};
 
 template <typename F>
-scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(noexcept(scope_succes<F>(std::forward<F>(action)))) {
+scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
   return scope_succes<F>{std::forward<F>(action)};
 }
 
 } // namespace scope_guard::detail
+
+using detail::make_scope_exit;
+using detail::make_scope_fail;
+using detail::make_scope_succes;
 
 } // namespace scope_guard
 

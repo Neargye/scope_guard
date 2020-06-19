@@ -80,7 +80,7 @@ inline int uncaught_exceptions() noexcept {
 struct __cxa_eh_globals;
 extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
 inline int uncaught_exceptions() noexcept {
-  return *(reinterpret_cast<unsigned int*>(static_cast<char*>(static_cast<void*>(__cxa_get_globals())) + sizeof(void*)));
+  return static_cast<int>(*(reinterpret_cast<unsigned int*>(static_cast<char*>(static_cast<void*>(__cxa_get_globals())) + sizeof(void*))));
 }
 #else
 inline int uncaught_exceptions() noexcept {

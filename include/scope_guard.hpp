@@ -32,6 +32,10 @@
 #ifndef NEARGYE_SCOPE_GUARD_HPP
 #define NEARGYE_SCOPE_GUARD_HPP
 
+#define SCOPE_GUARD_MAJOR 0
+#define SCOPE_GUARD_MINOR 6
+#define SCOPE_GUARD_PATCH 1
+
 #include <cstddef>
 #include <new>
 #include <type_traits>

@@ -48,12 +48,12 @@
 // SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE requires nothrow constructible action.
 // SCOPE_GUARD_MAY_THROW_ACTION action may throw exceptions.
 // SCOPE_GUARD_NO_THROW_ACTION requires noexcept action.
-// SCOPE_GUARD_SUPPRESS_THROW_ACTIONS exceptions during action will be suppressed.
+// SCOPE_GUARD_SUPPRESS_THROW_ACTION exceptions during action will be suppressed.
 
-#if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTIONS)
+#if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
 #  define SCOPE_GUARD_MAY_THROW_ACTION
-#elif (defined(SCOPE_GUARD_MAY_THROW_ACTION) + defined(SCOPE_GUARD_NO_THROW_ACTION) + defined(SCOPE_GUARD_SUPPRESS_THROW_ACTIONS)) > 1
-#  error Only one of SCOPE_GUARD_MAY_THROW_ACTION and SCOPE_GUARD_NO_THROW_ACTION and SCOPE_GUARD_SUPPRESS_THROW_ACTIONS may be defined.
+#elif (defined(SCOPE_GUARD_MAY_THROW_ACTION) + defined(SCOPE_GUARD_NO_THROW_ACTION) + defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)) > 1
+#  error Only one of SCOPE_GUARD_MAY_THROW_ACTION and SCOPE_GUARD_NO_THROW_ACTION and SCOPE_GUARD_SUPPRESS_THROW_ACTION may be defined.
 #endif
 
 #if defined(SCOPE_GUARD_NO_THROW_ACTION)
@@ -62,7 +62,7 @@
 #  define __SCOPE_GUARD_ACTION_NOEXCEPT
 #endif
 
-#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTIONS) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 #  define __SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define __SCOPE_GUARD_TRY try {
 #  define __SCOPE_GUARD_CATCH } catch (...) {}

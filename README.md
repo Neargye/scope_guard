@@ -21,9 +21,9 @@ Scope Guard statement invokes a function with deferred execution until surroundi
 
 * scope_exit - executing action on scope exit.
 
-* scope_fail - executing action on scope exit when an exception has been thrown before scope exit.
+* scope_fail - executing action on scope exit when an exception has been thrown.
 
-* scope_fail - executing action on scope exit when no exceptions have been thrown before scope exit.
+* scope_fail - executing action on scope exit when no exceptions have been thrown.
 
 Program control transferring does not influence Scope Guard statement execution. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occure.
 
@@ -34,26 +34,25 @@ Program control transferring does not influence Scope Guard statement execution.
 * Dependency-free
 * Thin callback wrapping, no added std::function or virtual table penalties
 * No implicitly ignored return, check callback return void
-* Defer or Scope Guard syntax
-* With syntax
+* Defer or Scope Guard syntax and "With" syntax
 
-## [Examples](example/example.cpp)
+## [Examples](example)
 
-* Scope Guard on exit
+* [Scope Guard on exit](example/scope_exit_example.cpp)
 
   ```cpp
   std::fstream file("test.txt");
   SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
   ```
 
-* Scope Guard on fail
+* [Scope Guard on fail](example/scope_fail_example.cpp)
 
   ```cpp
   persons.push_back(person); // Add the person to db.
   SCOPE_EXIT{ persons.pop_back(); }; // If the errors occure, we should roll back.
   ```
 
-* Scope Guard on succes
+* [Scope Guard on succes](example/scope_succes_example.cpp)
 
   ```cpp
   person = new Person{/*...*/};
@@ -95,27 +94,36 @@ Program control transferring does not influence Scope Guard statement execution.
 
 ### Reference
 
-* `SCOPE_EXIT{action};`
-* `MAKE_SCOPE_EXIT(name) {action};`
-* `WITH_SCOPE_EXIT({action}) {/*...*/};`
+#### scope_exit
 
-* `SCOPE_FAIL{action};`
-* `MAKE_SCOPE_FAIL(name) {action};`
-* `WITH_SCOPE_FAIL({action}) {/*...*/};`
+* `scope_exit<F> make_scope_exit(F&& action);` - return scope_exit with the action.
+* `SCOPE_EXIT{action};` - macro for creating scope_exit with the action.
+* `MAKE_SCOPE_EXIT(name) {action};` - macro for creating named scope_exit with the action.
+* `WITH_SCOPE_EXIT({action}) {/*...*/};` - macro for creating scope with scope_exit with the action.
 
-* `SCOPE_SUCCESS{action};`
-* `MAKE_SCOPE_SUCCESS(name) {action};`
-* `WITH_SCOPE_SUCCESS({action}) {/*...*/};`
+#### scope_fail
 
-* `DEFER{action};`
-* `MAKE_DEFER(name) {action};`
-* `WITH_DEFER({action}) {/*...*/};`
+* `scope_fail<F> make_scope_fail(F&& action);` - return scope_fail with the action.
+* `SCOPE_FAIL{action};` - macro for creating scope_fail with the action.
+* `MAKE_SCOPE_FAIL(name) {action};` - macro for creating named scope_fail with the action.
+* `WITH_SCOPE_FAIL({action}) {/*...*/};` - macro for creating scope with scope_fail with the action.
 
-* `scope_exit<F> make_scope_exit(F&& action);`
-* `scope_fail<F> make_scope_fail(F&& action);`
-* `scope_succes<F> make_scope_succes(F&& action);`
+#### scope_succes
+
+* `scope_succes<F> make_scope_succes(F&& action);` - return scope_succes with the action.
+* `SCOPE_SUCCESS{action};` - macro for creating scope_succes with the action.
+* `MAKE_SCOPE_SUCCESS(name) {action};` - macro for creating named scope_succes with the action.
+* `WITH_SCOPE_SUCCESS({action}) {/*...*/};` - macro for creating scope with scope_succes with the action.
+
+#### defer
+
+* `DEFER{action};` - macro for creating defer with the action.
+* `MAKE_DEFER(name) {action};` - macro for creating named defer with the action.
+* `WITH_DEFER({action}) {/*...*/};` - macro for creating scope with defer with the action.
 
 ### Interface of scope_guard
+
+scope_exit, scope_fail, scope_succes implement state_saver interface.
 
 * `dismiss()` - dismiss executing action on scope exit.
 

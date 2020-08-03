@@ -139,6 +139,8 @@ scope_exit, scope_fail, scope_succes implement state_saver interface.
 
 * By default using `SCOPE_GUARD_MAY_THROW_ACTION`.
 
+* `SCOPE_GUARD_CATCH_HANDLER` define this to add exceptions handler. If `SCOPE_GUARD_SUPPRESS_THROW_ACTIONS` is not defined, it will do nothing.
+
 ### Remarks
 
 * If multiple Scope Guard statements appear in the same scope, the order they appear is the reverse of the order they are executed.

@@ -49,11 +49,16 @@
 // SCOPE_GUARD_MAY_THROW_ACTION action may throw exceptions.
 // SCOPE_GUARD_NO_THROW_ACTION requires noexcept action.
 // SCOPE_GUARD_SUPPRESS_THROW_ACTION exceptions during action will be suppressed.
+// SCOPE_GUARD_CATCH_HANDLER exceptions handler.
 
 #if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
 #  define SCOPE_GUARD_MAY_THROW_ACTION
 #elif (defined(SCOPE_GUARD_MAY_THROW_ACTION) + defined(SCOPE_GUARD_NO_THROW_ACTION) + defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)) > 1
 #  error Only one of SCOPE_GUARD_MAY_THROW_ACTION and SCOPE_GUARD_NO_THROW_ACTION and SCOPE_GUARD_SUPPRESS_THROW_ACTION may be defined.
+#endif
+
+#if !defined(SCOPE_GUARD_CATCH_HANDLER)
+#  define SCOPE_GUARD_CATCH_HANDLER /* Suppress exception. */
 #endif
 
 namespace scope_guard {
@@ -63,7 +68,7 @@ namespace detail {
 #if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 #  define NEARGYE_NOEXCEPT(...) noexcept
 #  define NEARGYE_TRY try {
-#  define NEARGYE_CATCH } catch (...) {}
+#  define NEARGYE_CATCH } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
 #else
 #  define NEARGYE_NOEXCEPT(...) noexcept(__VA_ARGS__)
 #  define NEARGYE_TRY

@@ -20,11 +20,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <scope_guard.hpp>
-
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
+
+#define SCOPE_GUARD_SUPPRESS_THROW_ACTION
+#define SCOPE_GUARD_CATCH_HANDLER std::cout << "exception in scope_guard!" << std::endl;
+
+#include <scope_guard.hpp>
 
 int main() {
   try {
@@ -33,6 +36,7 @@ int main() {
     SCOPE_EXIT{
       file.close();
       std::cout << "[1] close file" << std::endl;
+      throw std::runtime_error{"error close file"};
     };
 
     MAKE_SCOPE_EXIT(scope_exit_1) {

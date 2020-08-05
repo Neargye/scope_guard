@@ -61,53 +61,11 @@
 #  define SCOPE_GUARD_CATCH_HANDLER /* Suppress exception. */
 #endif
 
-namespace scope_guard {
+#if !defined(NEARGYE_SCOPE_POLICY)
+#  define NEARGYE_SCOPE_POLICY 1
+namespace neargye {
+namespace scope_policy {
 
-namespace detail {
-
-#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
-#  define NEARGYE_NOEXCEPT(...) noexcept
-#  define NEARGYE_TRY try {
-#  define NEARGYE_CATCH } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
-#else
-#  define NEARGYE_NOEXCEPT(...) noexcept(__VA_ARGS__)
-#  define NEARGYE_TRY
-#  define NEARGYE_CATCH
-#endif
-
-// NEARGYE_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
-#if !defined(NEARGYE_NODISCARD)
-#  if defined(__clang__)
-#    if (__clang_major__ * 10 + __clang_minor__) >= 39 && __cplusplus >= 201703L
-#      define NEARGYE_NODISCARD [[nodiscard]]
-#    else
-#      define NEARGYE_NODISCARD __attribute__((__warn_unused_result__))
-#    endif
-#  elif defined(__GNUC__)
-#    if __GNUC__ >= 7 && __cplusplus >= 201703L
-#      define NEARGYE_NODISCARD [[nodiscard]]
-#    else
-#      define NEARGYE_NODISCARD __attribute__((__warn_unused_result__))
-#    endif
-#  elif defined(_MSC_VER)
-#    if _MSC_VER >= 1911 && defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
-#      define NEARGYE_NODISCARD [[nodiscard]]
-#    elif defined(_Check_return_)
-#      define NEARGYE_NODISCARD _Check_return_
-#    else
-#      define NEARGYE_NODISCARD
-#    endif
-#  else
-#    define NEARGYE_NODISCARD
-#  endif
-#endif
-
-#if defined(NEARGYE_STATE_SAVER_HPP)
-using ::state_saver::detail::uncaught_exceptions;
-using ::state_saver::detail::on_exit_policy;
-using ::state_saver::detail::on_fail_policy;
-using ::state_saver::detail::on_success_policy;
-#else
 class on_exit_policy {
   bool execute_;
 
@@ -168,7 +126,56 @@ class on_success_policy {
     return ec_ != -1 && ec_ >= uncaught_exceptions();
   }
 };
+
+} // namespace neargye::scope_policy
+} // namespace neargye
 #endif
+
+namespace scope_guard {
+
+namespace detail {
+
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+#  define NEARGYE_NOEXCEPT(...) noexcept
+#  define NEARGYE_TRY try {
+#  define NEARGYE_CATCH } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
+#else
+#  define NEARGYE_NOEXCEPT(...) noexcept(__VA_ARGS__)
+#  define NEARGYE_TRY
+#  define NEARGYE_CATCH
+#endif
+
+// NEARGYE_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
+#if !defined(NEARGYE_NODISCARD)
+#  if defined(__clang__)
+#    if (__clang_major__ * 10 + __clang_minor__) >= 39 && __cplusplus >= 201703L
+#      define NEARGYE_NODISCARD [[nodiscard]]
+#    else
+#      define NEARGYE_NODISCARD __attribute__((__warn_unused_result__))
+#    endif
+#  elif defined(__GNUC__)
+#    if __GNUC__ >= 7 && __cplusplus >= 201703L
+#      define NEARGYE_NODISCARD [[nodiscard]]
+#    else
+#      define NEARGYE_NODISCARD __attribute__((__warn_unused_result__))
+#    endif
+#  elif defined(_MSC_VER)
+#    if _MSC_VER >= 1911 && defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
+#      define NEARGYE_NODISCARD [[nodiscard]]
+#    elif defined(_Check_return_)
+#      define NEARGYE_NODISCARD _Check_return_
+#    else
+#      define NEARGYE_NODISCARD
+#    endif
+#  else
+#    define NEARGYE_NODISCARD
+#  endif
+#endif
+
+using ::neargye::scope_policy::uncaught_exceptions;
+using ::neargye::scope_policy::on_exit_policy;
+using ::neargye::scope_policy::on_fail_policy;
+using ::neargye::scope_policy::on_success_policy;
 
 template <typename T, typename = void>
 struct is_noarg_returns_void_action

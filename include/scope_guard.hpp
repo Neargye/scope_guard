@@ -64,7 +64,7 @@
 #if !defined(NEARGYE_SCOPE_POLICY)
 #  define NEARGYE_SCOPE_POLICY 1
 namespace neargye {
-namespace scope_policy {
+namespace detail {
 
 class on_exit_policy {
   bool execute_;
@@ -172,10 +172,10 @@ namespace detail {
 #  endif
 #endif
 
-using ::neargye::scope_policy::uncaught_exceptions;
-using ::neargye::scope_policy::on_exit_policy;
-using ::neargye::scope_policy::on_fail_policy;
-using ::neargye::scope_policy::on_success_policy;
+using ::neargye::detail::uncaught_exceptions;
+using ::neargye::detail::on_exit_policy;
+using ::neargye::detail::on_fail_policy;
+using ::neargye::detail::on_success_policy;
 
 template <typename T, typename = void>
 struct is_noarg_returns_void_action

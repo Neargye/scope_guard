@@ -123,7 +123,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
 ### Interface of scope_guard
 
-scope_exit, scope_fail, scope_succes implement state_saver interface.
+scope_exit, scope_fail, scope_succes implement scope_guard interface.
 
 * `dismiss()` - dismiss executing action on scope exit.
 

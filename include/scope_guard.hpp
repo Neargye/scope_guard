@@ -5,7 +5,7 @@
 //  ____) | (_| (_) | |_) |  __/ | |__| | |_| | (_| | | | (_| | | |____|_|   |_|
 // |_____/ \___\___/| .__/ \___|  \_____|\__,_|\__,_|_|  \__,_|  \_____|
 //                  | | https://github.com/Neargye/scope_guard
-//                  |_| version 0.7.0
+//                  |_| version 0.8.0
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
@@ -33,7 +33,7 @@
 #define NEARGYE_SCOPE_GUARD_HPP
 
 #define SCOPE_GUARD_VERSION_MAJOR 0
-#define SCOPE_GUARD_VERSION_MINOR 7
+#define SCOPE_GUARD_VERSION_MINOR 8
 #define SCOPE_GUARD_VERSION_PATCH 0
 
 #include <cstddef>
@@ -49,7 +49,7 @@
 // SCOPE_GUARD_MAY_THROW_ACTION action may throw exceptions.
 // SCOPE_GUARD_NO_THROW_ACTION requires noexcept action.
 // SCOPE_GUARD_SUPPRESS_THROW_ACTION exceptions during action will be suppressed.
-// SCOPE_GUARD_CATCH_HANDLER exceptions handler.
+// SCOPE_GUARD_CATCH_HANDLER exceptions handler. If SCOPE_GUARD_SUPPRESS_THROW_ACTIONS is not defined, it will do nothing.
 
 #if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
 #  define SCOPE_GUARD_MAY_THROW_ACTION
@@ -58,77 +58,7 @@
 #endif
 
 #if !defined(SCOPE_GUARD_CATCH_HANDLER)
-#  define SCOPE_GUARD_CATCH_HANDLER /* Suppress exception. */
-#endif
-
-#if !defined(NEARGYE_SCOPE_POLICY)
-#  define NEARGYE_SCOPE_POLICY 1
-namespace neargye {
-namespace detail {
-
-class on_exit_policy {
-  bool execute_;
-
- public:
-  explicit on_exit_policy(bool execute) noexcept : execute_{execute} {}
-
-  void dismiss() noexcept {
-    execute_ = false;
-  }
-
-  bool should_execute() const noexcept {
-    return execute_;
-  }
-};
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-inline int uncaught_exceptions() noexcept {
-  return *(reinterpret_cast<int*>(static_cast<char*>(static_cast<void*>(_getptd())) + (sizeof(void*) == 8 ? 0x100 : 0x90)));
-}
-#elif (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
-struct __cxa_eh_globals;
-extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
-inline int uncaught_exceptions() noexcept {
-  return static_cast<int>(*(reinterpret_cast<unsigned int*>(static_cast<char*>(static_cast<void*>(__cxa_get_globals())) + sizeof(void*))));
-}
-#else
-inline int uncaught_exceptions() noexcept {
-  return std::uncaught_exceptions();
-}
-#endif
-
-class on_fail_policy {
-  int ec_;
-
- public:
-  explicit on_fail_policy(bool execute) noexcept : ec_{execute ? uncaught_exceptions() : -1} {}
-
-  void dismiss() noexcept {
-    ec_ = -1;
-  }
-
-  bool should_execute() const noexcept {
-    return ec_ != -1 && ec_ < uncaught_exceptions();
-  }
-};
-
-class on_success_policy {
-  int ec_;
-
- public:
-  explicit on_success_policy(bool execute) noexcept : ec_{execute ? uncaught_exceptions() : -1} {}
-
-  void dismiss() noexcept {
-    ec_ = -1;
-  }
-
-  bool should_execute() const noexcept {
-    return ec_ != -1 && ec_ >= uncaught_exceptions();
-  }
-};
-
-} // namespace neargye::detail
-} // namespace neargye
+#  define SCOPE_GUARD_CATCH_HANDLER /* Suppress exception.*/
 #endif
 
 namespace scope_guard {
@@ -172,10 +102,67 @@ namespace detail {
 #  endif
 #endif
 
-using ::neargye::detail::uncaught_exceptions;
-using ::neargye::detail::on_exit_policy;
-using ::neargye::detail::on_fail_policy;
-using ::neargye::detail::on_success_policy;
+#if defined(_MSC_VER) && _MSC_VER < 1900
+inline int uncaught_exceptions() noexcept {
+  return *(reinterpret_cast<int*>(static_cast<char*>(static_cast<void*>(_getptd())) + (sizeof(void*) == 8 ? 0x100 : 0x90)));
+}
+#elif (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
+struct __cxa_eh_globals;
+extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
+inline int uncaught_exceptions() noexcept {
+  return static_cast<int>(*(reinterpret_cast<unsigned int*>(static_cast<char*>(static_cast<void*>(__cxa_get_globals())) + sizeof(void*))));
+}
+#else
+inline int uncaught_exceptions() noexcept {
+  return std::uncaught_exceptions();
+}
+#endif
+
+class on_exit_policy {
+  bool execute_;
+
+ public:
+  explicit on_exit_policy(bool execute) noexcept : execute_{execute} {}
+
+  void dismiss() noexcept {
+    execute_ = false;
+  }
+
+  bool should_execute() const noexcept {
+    return execute_;
+  }
+};
+
+
+class on_fail_policy {
+  int ec_;
+
+ public:
+  explicit on_fail_policy(bool execute) noexcept : ec_{execute ? uncaught_exceptions() : -1} {}
+
+  void dismiss() noexcept {
+    ec_ = -1;
+  }
+
+  bool should_execute() const noexcept {
+    return ec_ != -1 && ec_ < uncaught_exceptions();
+  }
+};
+
+class on_success_policy {
+  int ec_;
+
+ public:
+  explicit on_success_policy(bool execute) noexcept : ec_{execute ? uncaught_exceptions() : -1} {}
+
+  void dismiss() noexcept {
+    ec_ = -1;
+  }
+
+  bool should_execute() const noexcept {
+    return ec_ != -1 && ec_ >= uncaught_exceptions();
+  }
+};
 
 template <typename T, typename = void>
 struct is_noarg_returns_void_action
@@ -252,21 +239,21 @@ class scope_guard {
 template <typename F>
 using scope_exit = scope_guard<F, on_exit_policy>;
 
-template <typename F>
-using scope_fail = scope_guard<F, on_fail_policy>;
-
-template <typename F>
-using scope_succes = scope_guard<F, on_success_policy>;
-
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 NEARGYE_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{std::forward<F>(action)})) {
   return scope_exit<F>{std::forward<F>(action)};
 }
 
+template <typename F>
+using scope_fail = scope_guard<F, on_fail_policy>;
+
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 NEARGYE_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{std::forward<F>(action)})) {
   return scope_fail<F>{std::forward<F>(action)};
 }
+
+template <typename F>
+using scope_succes = scope_guard<F, on_success_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 NEARGYE_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {

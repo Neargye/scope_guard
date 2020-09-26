@@ -23,7 +23,7 @@ Scope Guard statement invokes a function with deferred execution until surroundi
 
 * scope_fail - executing action on scope exit when an exception has been thrown.
 
-* scope_fail - executing action on scope exit when no exceptions have been thrown.
+* scope_success - executing action on scope exit when no exceptions have been thrown.
 
 Program control transferring does not influence Scope Guard statement execution. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occure.
 

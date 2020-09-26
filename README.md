@@ -23,9 +23,9 @@ Scope Guard statement invokes a function with deferred execution until surroundi
 
 * scope_fail - executing action on scope exit when an exception has been thrown.
 
-* scope_fail - executing action on scope exit when no exceptions have been thrown.
+* scope_success - executing action on scope exit when no exceptions have been thrown.
 
-Program control transferring does not influence Scope Guard statement execution. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occure.
+Program control transferring does not influence Scope Guard statement execution. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occurs.
 
 ## Features
 
@@ -42,22 +42,22 @@ Program control transferring does not influence Scope Guard statement execution.
 
   ```cpp
   std::fstream file("test.txt");
-  SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occure.
+  SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occur.
   ```
 
 * [Scope Guard on fail](example/scope_fail_example.cpp)
 
   ```cpp
   persons.push_back(person); // Add the person to db.
-  SCOPE_EXIT{ persons.pop_back(); }; // If the errors occure, we should roll back.
+  SCOPE_FAIL{ persons.pop_back(); }; // If errors occur, we should roll back.
   ```
 
-* [Scope Guard on succes](example/scope_succes_example.cpp)
+* [Scope Guard on success](example/scope_succes_example.cpp)
 
   ```cpp
   person = new Person{/*...*/};
   // ...
-  SCOPE_SUCCESS{ persons.push_back(person); }; // If no errors occure, we should add the person to db.
+  SCOPE_SUCCESS{ persons.push_back(person); }; // If no errors occur, we should add the person to db.
   ```
 
 * Custom Scope Guard
@@ -65,7 +65,7 @@ Program control transferring does not influence Scope Guard statement execution.
   ```cpp
   persons.push_back(person); // Add the person to db.
 
-  MAKE_SCOPE_EXIT(scope_exit) { // Following block is executed when exit the enclosing scope or errors occure.
+  MAKE_SCOPE_EXIT(scope_exit) { // Following block is executed when exit the enclosing scope or errors occur.
     persons.pop_back(); // If the db insertion fails, we should roll back.
   };
   // MAKE_SCOPE_EXIT(name) {action} - macro is used to create a new scope_exit object.
@@ -85,7 +85,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
   ```cpp
   std::fstream file("test.txt");
-  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occure.
+  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occur.
     // ...
   };
   ```
@@ -108,12 +108,12 @@ Program control transferring does not influence Scope Guard statement execution.
 * `MAKE_SCOPE_FAIL(name) {action};` - macro for creating named scope_fail with the action.
 * `WITH_SCOPE_FAIL({action}) {/*...*/};` - macro for creating scope with scope_fail with the action.
 
-#### scope_succes
+#### scope_success
 
-* `scope_succes<F> make_scope_succes(F&& action);` - return scope_succes with the action.
-* `SCOPE_SUCCESS{action};` - macro for creating scope_succes with the action.
-* `MAKE_SCOPE_SUCCESS(name) {action};` - macro for creating named scope_succes with the action.
-* `WITH_SCOPE_SUCCESS({action}) {/*...*/};` - macro for creating scope with scope_succes with the action.
+* `scope_success<F> make_scope_success(F&& action);` - return scope_success with the action.
+* `SCOPE_SUCCESS{action};` - macro for creating scope_success with the action.
+* `MAKE_SCOPE_SUCCESS(name) {action};` - macro for creating named scope_success with the action.
+* `WITH_SCOPE_SUCCESS({action}) {/*...*/};` - macro for creating scope with scope_success with the action.
 
 #### defer
 
@@ -123,7 +123,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
 ### Interface of scope_guard
 
-scope_exit, scope_fail, scope_succes implement scope_guard interface.
+scope_exit, scope_fail, scope_success implement scope_guard interface.
 
 * `dismiss()` - dismiss executing action on scope exit.
 

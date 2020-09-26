@@ -274,10 +274,10 @@ scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail
   return scope_fail<F>{std::forward<F>(action)};
 }
 
-struct scope_succes_tag {};
+struct scope_success_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_succes<F> operator+(scope_succes_tag, F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
+scope_succes<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
   return scope_succes<F>{std::forward<F>(action)};
 }
 
@@ -356,7 +356,7 @@ using detail::make_scope_succes;
 #define WITH_SCOPE_FAIL(guard) NEARGYE_SCOPE_GUARD_WITH(SCOPE_FAIL{guard})
 
 // SCOPE_SUCCESS executing action on scope exit when no exceptions have been thrown before scope exit.
-#define MAKE_SCOPE_SUCCESS(name) auto name = NEARGYE_MAKE_SCOPE_EXIT(::scope_guard::detail::scope_succes_tag)
+#define MAKE_SCOPE_SUCCESS(name) auto name = NEARGYE_MAKE_SCOPE_EXIT(::scope_guard::detail::scope_success_tag)
 #define SCOPE_SUCCESS NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_SUCCESS(NEARGYE_STR_CONCAT(SCOPE_SUCCESS_, NEARGYE_COUNTER))
 #define WITH_SCOPE_SUCCESS(guard) NEARGYE_SCOPE_GUARD_WITH(SCOPE_SUCCESS{guard})
 

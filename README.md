@@ -108,12 +108,12 @@ Program control transferring does not influence Scope Guard statement execution.
 * `MAKE_SCOPE_FAIL(name) {action};` - macro for creating named scope_fail with the action.
 * `WITH_SCOPE_FAIL({action}) {/*...*/};` - macro for creating scope with scope_fail with the action.
 
-#### scope_succes
+#### scope_success
 
-* `scope_succes<F> make_scope_succes(F&& action);` - return scope_succes with the action.
-* `SCOPE_SUCCESS{action};` - macro for creating scope_succes with the action.
-* `MAKE_SCOPE_SUCCESS(name) {action};` - macro for creating named scope_succes with the action.
-* `WITH_SCOPE_SUCCESS({action}) {/*...*/};` - macro for creating scope with scope_succes with the action.
+* `scope_success<F> make_scope_success(F&& action);` - return scope_success with the action.
+* `SCOPE_SUCCESS{action};` - macro for creating scope_success with the action.
+* `MAKE_SCOPE_SUCCESS(name) {action};` - macro for creating named scope_success with the action.
+* `WITH_SCOPE_SUCCESS({action}) {/*...*/};` - macro for creating scope with scope_success with the action.
 
 #### defer
 
@@ -123,7 +123,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
 ### Interface of scope_guard
 
-scope_exit, scope_fail, scope_succes implement scope_guard interface.
+scope_exit, scope_fail, scope_success implement scope_guard interface.
 
 * `dismiss()` - dismiss executing action on scope exit.
 

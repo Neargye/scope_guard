@@ -85,7 +85,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
   ```cpp
   std::fstream file("test.txt");
-  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occurs.
+  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occur.
     // ...
   };
   ```

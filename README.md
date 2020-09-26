@@ -49,7 +49,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
   ```cpp
   persons.push_back(person); // Add the person to db.
-  SCOPE_EXIT{ persons.pop_back(); }; // If the errors occure, we should roll back.
+  SCOPE_FAIL{ persons.pop_back(); }; // If the errors occure, we should roll back.
   ```
 
 * [Scope Guard on succes](example/scope_succes_example.cpp)

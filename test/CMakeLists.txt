@@ -55,6 +55,10 @@ if(HAS_CPP17_FLAG)
     make_test(${CMAKE_PROJECT_NAME}-cpp17.t c++17)
 endif()
 
+if(HAS_CPP20_FLAG)
+    make_test(${CMAKE_PROJECT_NAME}-cpp20.t c++20)
+endif()
+
 if(HAS_CPPLATEST_FLAG)
     make_test(${CMAKE_PROJECT_NAME}-cpplatest.t c++latest)
 endif()

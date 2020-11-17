@@ -34,12 +34,9 @@
 
 #define SCOPE_GUARD_VERSION_MAJOR 0
 #define SCOPE_GUARD_VERSION_MINOR 8
-#define SCOPE_GUARD_VERSION_PATCH 0
+#define SCOPE_GUARD_VERSION_PATCH 1
 
-#include <cstddef>
-#include <new>
 #include <type_traits>
-#include <utility>
 #if (defined(_MSC_VER) && _MSC_VER >= 1900) || ((defined(__clang__) || defined(__GNUC__)) && __cplusplus >= 201700L)
 #include <exception>
 #endif
@@ -65,7 +62,7 @@ namespace scope_guard {
 
 namespace detail {
 
-#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || (_HAS_EXCEPTIONS))
 #  define NEARGYE_NOEXCEPT(...) noexcept
 #  define NEARGYE_TRY try {
 #  define NEARGYE_CATCH } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
@@ -74,6 +71,9 @@ namespace detail {
 #  define NEARGYE_TRY
 #  define NEARGYE_CATCH
 #endif
+
+#define NEARGYE_MOV(...) static_cast<typename std::remove_reference<decltype(__VA_ARGS__)>::type&&>(__VA_ARGS__)
+#define NEARGYE_FWD(...) static_cast<decltype(__VA_ARGS__)&&>(__VA_ARGS__)
 
 // NEARGYE_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
 #if !defined(NEARGYE_NODISCARD)
@@ -132,7 +132,6 @@ class on_exit_policy {
     return execute_;
   }
 };
-
 
 class on_fail_policy {
   int ec_;
@@ -211,8 +210,8 @@ class scope_guard {
 
   scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{false},
-        action_{std::move(other.action_)} {
-    policy_ = std::move(other.policy_);
+        action_{NEARGYE_MOV(other.action_)} {
+    policy_ = NEARGYE_MOV(other.policy_);
     other.policy_.dismiss();
   }
 
@@ -221,7 +220,7 @@ class scope_guard {
 
   explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{true},
-        action_{std::move(action)} {}
+        action_{NEARGYE_MOV(action)} {}
 
   void dismiss() noexcept {
     policy_.dismiss();
@@ -240,47 +239,49 @@ template <typename F>
 using scope_exit = scope_guard<F, on_exit_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-NEARGYE_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{std::forward<F>(action)})) {
-  return scope_exit<F>{std::forward<F>(action)};
+NEARGYE_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_FWD(action)})) {
+  return scope_exit<F>{NEARGYE_FWD(action)};
 }
 
 template <typename F>
 using scope_fail = scope_guard<F, on_fail_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-NEARGYE_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{std::forward<F>(action)})) {
-  return scope_fail<F>{std::forward<F>(action)};
+NEARGYE_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_FWD(action)})) {
+  return scope_fail<F>{NEARGYE_FWD(action)};
 }
 
 template <typename F>
 using scope_succes = scope_guard<F, on_success_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-NEARGYE_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
-  return scope_succes<F>{std::forward<F>(action)};
+NEARGYE_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>{NEARGYE_FWD(action)})) {
+  return scope_succes<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_exit_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{std::forward<F>(action)})) {
-  return scope_exit<F>{std::forward<F>(action)};
+scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_FWD(action)})) {
+  return scope_exit<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_fail_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{std::forward<F>(action)})) {
-  return scope_fail<F>{std::forward<F>(action)};
+scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_FWD(action)})) {
+  return scope_fail<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_success_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_succes<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope_succes<F>{std::forward<F>(action)})) {
+scope_succes<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope_succes<F>{NEARGYE_FWD(action)})) {
   return scope_succes<F>{std::forward<F>(action)};
 }
 
+#undef NEARGYE_MOV
+#undef NEARGYE_FWD
 #undef NEARGYE_NOEXCEPT
 #undef NEARGYE_TRY
 #undef NEARGYE_CATCH

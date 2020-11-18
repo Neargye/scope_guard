@@ -32,15 +32,15 @@ int main() {
     file.open("test.txt", std::fstream::out | std::fstream::trunc);
     SCOPE_SUCCESS{
       file.close();
-      std::cout << "[1] file write succes" << std::endl;
+      std::cout << "[1] file write success" << std::endl;
     };
 
-    MAKE_SCOPE_SUCCESS(scope_succes_1) {
-      std::cout << "[1] file write succes" << std::endl;
+    MAKE_SCOPE_SUCCESS(scope_success_1) {
+      std::cout << "[1] file write success" << std::endl;
     };
 
-    auto scope_succes_2 = scope_guard::make_scope_succes([&]() {
-      std::cout << "[1] file write succes" << std::endl;
+    auto scope_success_2 = scope_guard::make_scope_success([&]() {
+      std::cout << "[1] file write success" << std::endl;
     });
 
     WITH_SCOPE_SUCCESS({ std::cout << "[1] leave WITH_SCOPE_SUCCESS" << std::endl; }) {
@@ -51,11 +51,11 @@ int main() {
     std::cout << "[1] write to file" << std::endl;
     file.close();
 
-    scope_succes_1.dismiss();
+    scope_success_1.dismiss();
 
     throw std::runtime_error{"error"};
 
-    scope_succes_2.dismiss();
+    scope_success_2.dismiss();
   }
   catch (...) {
     std::cout << "[1] error" << std::endl;
@@ -64,7 +64,7 @@ int main() {
   std::fstream file;
   SCOPE_SUCCESS{
     file.close();
-    std::cout << "[2] file write succes" << std::endl;
+    std::cout << "[2] file write success" << std::endl;
   };
   file.open("test.txt", std::fstream::out | std::fstream::trunc);
   file << "[2] example" << std::endl;
@@ -77,5 +77,5 @@ int main() {
   // prints "[1] write to file".
   // prints "[1] error".
   // prints "[2] write to file".
-  // prints "[2] file write succes".
+  // prints "[2] file write success".
 }

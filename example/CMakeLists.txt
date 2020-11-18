@@ -22,4 +22,4 @@ endfunction()
 
 make_example(scope_exit_example)
 make_example(scope_fail_example)
-make_example(scope_succes_example)
+make_example(scope_success_example)

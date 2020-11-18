@@ -52,7 +52,7 @@ Program control transferring does not influence Scope Guard statement execution.
   SCOPE_FAIL{ persons.pop_back(); }; // If errors occur, we should roll back.
   ```
 
-* [Scope Guard on success](example/scope_succes_example.cpp)
+* [Scope Guard on success](example/scope_success_example.cpp)
 
   ```cpp
   person = new Person{/*...*/};

@@ -252,11 +252,11 @@ NEARGYE_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(sc
 }
 
 template <typename F>
-using scope_succes = scope_guard<F, on_success_policy>;
+using scope_success = scope_guard<F, on_success_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-NEARGYE_NODISCARD scope_succes<F> make_scope_succes(F&& action) noexcept(noexcept(scope_succes<F>{NEARGYE_FWD(action)})) {
-  return scope_succes<F>{NEARGYE_FWD(action)};
+NEARGYE_NODISCARD scope_success<F> make_scope_success(F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_FWD(action)})) {
+  return scope_success<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_exit_tag {};
@@ -276,8 +276,8 @@ scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail
 struct scope_success_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_succes<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope_succes<F>{NEARGYE_FWD(action)})) {
-  return scope_succes<F>{NEARGYE_FWD(action)};
+scope_success<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_FWD(action)})) {
+  return scope_success<F>{NEARGYE_FWD(action)};
 }
 
 #undef NEARGYE_MOV
@@ -291,7 +291,7 @@ scope_succes<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope
 
 using detail::make_scope_exit;
 using detail::make_scope_fail;
-using detail::make_scope_succes;
+using detail::make_scope_success;
 
 } // namespace scope_guard
 

@@ -68,7 +68,7 @@ TEST_CASE("called on scope leave") {
     }());
   }
 
-  SECTION("scope_succes") {
+  SECTION("scope_success") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(1));
@@ -104,7 +104,7 @@ TEST_CASE("called on exception") {
     }());
   }
 
-  SECTION("scope_succes") {
+  SECTION("scope_success") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(0));
@@ -140,7 +140,7 @@ TEST_CASE("dismiss before scope leave") {
     }());
   }
 
-  SECTION("scope_succes") {
+  SECTION("scope_success") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(0));
@@ -181,7 +181,7 @@ TEST_CASE("dismiss before exception") {
     }());
   }
 
-  SECTION("scope_succes") {
+  SECTION("scope_success") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(0));
@@ -225,7 +225,7 @@ TEST_CASE("called on exception, dismiss after exception") {
     }());
   }
 
-  SECTION("scope_succes") {
+  SECTION("scope_success") {
     ExecutionCounter m;
     REQUIRE_CALL_V(m, Execute(),
                    .TIMES(0));

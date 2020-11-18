@@ -277,7 +277,7 @@ struct scope_success_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
 scope_succes<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope_succes<F>{NEARGYE_FWD(action)})) {
-  return scope_succes<F>{std::forward<F>(action)};
+  return scope_succes<F>{NEARGYE_FWD(action)};
 }
 
 #undef NEARGYE_MOV

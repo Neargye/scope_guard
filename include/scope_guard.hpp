@@ -5,7 +5,7 @@
 //  ____) | (_| (_) | |_) |  __/ | |__| | |_| | (_| | | | (_| | | |____|_|   |_|
 // |_____/ \___\___/| .__/ \___|  \_____|\__,_|\__,_|_|  \__,_|  \_____|
 //                  | | https://github.com/Neargye/scope_guard
-//                  |_| version 0.8.1
+//                  |_| version 0.9.0
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
@@ -33,8 +33,8 @@
 #define NEARGYE_SCOPE_GUARD_HPP
 
 #define SCOPE_GUARD_VERSION_MAJOR 0
-#define SCOPE_GUARD_VERSION_MINOR 8
-#define SCOPE_GUARD_VERSION_PATCH 1
+#define SCOPE_GUARD_VERSION_MINOR 9
+#define SCOPE_GUARD_VERSION_PATCH 0
 
 #include <type_traits>
 #if (defined(_MSC_VER) && _MSC_VER >= 1900) || ((defined(__clang__) || defined(__GNUC__)) && __cplusplus >= 201700L)

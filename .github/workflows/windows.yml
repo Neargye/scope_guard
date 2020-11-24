@@ -23,3 +23,6 @@ jobs:
 
     - name: Build
       run: cmake --build . --config ${{matrix.build}}
+
+    - name: Tests
+      run: ctest --output-on-failure -C ${{matrix.build}}

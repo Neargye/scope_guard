@@ -11,9 +11,6 @@
 
 [![Github Releases](https://img.shields.io/github/release/Neargye/scope_guard.svg)](https://github.com/Neargye/scope_guard/releases)
 [![License](https://img.shields.io/github/license/Neargye/scope_guard.svg)](LICENSE)
-[![Build Status](https://travis-ci.org/Neargye/scope_guard.svg?branch=master)](https://travis-ci.org/Neargye/scope_guard)
-[![Build status](https://ci.appveyor.com/api/projects/status/yi394vgtwd0i2kco/branch/master?svg=true)](https://ci.appveyor.com/project/Neargye/scope-guard/branch/master)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/f5aa0553701f4f84bd51f2efda879972)](https://www.codacy.com/app/Neargye/scope_guard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Neargye/scope_guard&amp;utm_campaign=Badge_Grade)
 
 # Scope Guard & Defer C++
 

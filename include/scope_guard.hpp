@@ -262,21 +262,21 @@ NEARGYE_NODISCARD scope_success<F> make_scope_success(F&& action) noexcept(noexc
 struct scope_exit_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_exit<F> operator+(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_FWD(action)})) {
+scope_exit<F> operator<<(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_FWD(action)})) {
   return scope_exit<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_fail_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_fail<F> operator+(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_FWD(action)})) {
+scope_fail<F> operator<<(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_FWD(action)})) {
   return scope_fail<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_success_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
-scope_success<F> operator+(scope_success_tag, F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_FWD(action)})) {
+scope_success<F> operator<<(scope_success_tag, F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_FWD(action)})) {
   return scope_success<F>{NEARGYE_FWD(action)};
 }
 
@@ -334,32 +334,28 @@ using detail::make_scope_success;
 #endif
 
 #if defined(SCOPE_GUARD_NO_THROW_ACTION)
-#  define NEARGYE_MAKE_SCOPE_EXIT(tag) tag{} + [&]() noexcept -> void
+#  define NEARGYE_MAKE_SCOPE_GUARD_ACTION [&]() noexcept -> void
 #else
-#  define NEARGYE_MAKE_SCOPE_EXIT(tag) tag{} + [&]() -> void
+#  define NEARGYE_MAKE_SCOPE_GUARD_ACTION [&]() -> void
 #endif
 
-#if __cplusplus >= 201703L || defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
-#  define NEARGYE_SCOPE_GUARD_WITH(g) if (g; true)
-#else
-#  define NEARGYE_SCOPE_GUARD_WITH_IMPL(g, i) if (int i = 1) for (g; i; --i)
-#  define NEARGYE_SCOPE_GUARD_WITH(g) NEARGYE_SCOPE_GUARD_WITH_IMPL(g, NEARGYE_STR_CONCAT(WITH_INTERNAL_OBJECT_, NEARGYE_COUNTER))
-#endif
+#define NEARGYE_SCOPE_GUARD_WITH_IMPL(g, i) for (int i = 1; i--; g)
+#define NEARGYE_SCOPE_GUARD_WITH(g) NEARGYE_SCOPE_GUARD_WITH_IMPL(g, NEARGYE_STR_CONCAT(NEARGYE_INTERNAL_OBJECT_, NEARGYE_COUNTER))
 
 // SCOPE_EXIT executing action on scope exit.
-#define MAKE_SCOPE_EXIT(name) auto name = NEARGYE_MAKE_SCOPE_EXIT(::scope_guard::detail::scope_exit_tag)
-#define SCOPE_EXIT NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_EXIT(NEARGYE_STR_CONCAT(SCOPE_EXIT_, NEARGYE_COUNTER))
-#define WITH_SCOPE_EXIT(guard) NEARGYE_SCOPE_GUARD_WITH(SCOPE_EXIT{guard})
+#define MAKE_SCOPE_EXIT(name) auto name = ::scope_guard::detail::scope_exit_tag{} << NEARGYE_MAKE_SCOPE_GUARD_ACTION
+#define SCOPE_EXIT NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_EXIT(NEARGYE_STR_CONCAT(NEARGYE_SCOPE_EXIT_, NEARGYE_COUNTER))
+#define WITH_SCOPE_EXIT(guard) NEARGYE_SCOPE_GUARD_WITH(::scope_guard::detail::make_scope_exit(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
 
 // SCOPE_FAIL executing action on scope exit when an exception has been thrown before scope exit.
-#define MAKE_SCOPE_FAIL(name) auto name = NEARGYE_MAKE_SCOPE_EXIT(::scope_guard::detail::scope_fail_tag)
-#define SCOPE_FAIL NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_FAIL(NEARGYE_STR_CONCAT(SCOPE_FAIL_, NEARGYE_COUNTER))
-#define WITH_SCOPE_FAIL(guard) NEARGYE_SCOPE_GUARD_WITH(SCOPE_FAIL{guard})
+#define MAKE_SCOPE_FAIL(name) auto name = ::scope_guard::detail::scope_fail_tag{} << NEARGYE_MAKE_SCOPE_GUARD_ACTION
+#define SCOPE_FAIL NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_FAIL(NEARGYE_STR_CONCAT(NEARGYE_SCOPE_FAIL_, NEARGYE_COUNTER))
+#define WITH_SCOPE_FAIL(guard) NEARGYE_SCOPE_GUARD_WITH(::scope_guard::detail::make_scope_fail(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
 
 // SCOPE_SUCCESS executing action on scope exit when no exceptions have been thrown before scope exit.
-#define MAKE_SCOPE_SUCCESS(name) auto name = NEARGYE_MAKE_SCOPE_EXIT(::scope_guard::detail::scope_success_tag)
-#define SCOPE_SUCCESS NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_SUCCESS(NEARGYE_STR_CONCAT(SCOPE_SUCCESS_, NEARGYE_COUNTER))
-#define WITH_SCOPE_SUCCESS(guard) NEARGYE_SCOPE_GUARD_WITH(SCOPE_SUCCESS{guard})
+#define MAKE_SCOPE_SUCCESS(name) auto name = ::scope_guard::detail::scope_success_tag{} << NEARGYE_MAKE_SCOPE_GUARD_ACTION
+#define SCOPE_SUCCESS NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_SUCCESS(NEARGYE_STR_CONCAT(NEARGYE_SCOPE_SUCCESS_, NEARGYE_COUNTER))
+#define WITH_SCOPE_SUCCESS(guard) NEARGYE_SCOPE_GUARD_WITH(::scope_guard::detail::make_scope_success(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
 
 // DEFER executing action on scope exit.
 #define MAKE_DEFER(name) MAKE_SCOPE_EXIT(name)

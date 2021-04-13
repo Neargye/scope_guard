@@ -345,17 +345,17 @@ using detail::make_scope_success;
 // SCOPE_EXIT executing action on scope exit.
 #define MAKE_SCOPE_EXIT(name)  auto name = ::scope_guard::detail::scope_exit_tag{} << NEARGYE_MAKE_SCOPE_GUARD_ACTION
 #define SCOPE_EXIT             NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_EXIT(NEARGYE_STR_CONCAT(NEARGYE_SCOPE_EXIT_, NEARGYE_COUNTER))
-#define WITH_SCOPE_EXIT(guard) NEARGYE_SCOPE_GUARD_WITH(::scope_guard::detail::make_scope_exit(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
+#define WITH_SCOPE_EXIT(guard) NEARGYE_SCOPE_GUARD_WITH(NEARGYE_MAYBE_UNUSED ::scope_guard::detail::make_scope_exit(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
 
 // SCOPE_FAIL executing action on scope exit when an exception has been thrown before scope exit.
 #define MAKE_SCOPE_FAIL(name)  auto name = ::scope_guard::detail::scope_fail_tag{} << NEARGYE_MAKE_SCOPE_GUARD_ACTION
 #define SCOPE_FAIL             NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_FAIL(NEARGYE_STR_CONCAT(NEARGYE_SCOPE_FAIL_, NEARGYE_COUNTER))
-#define WITH_SCOPE_FAIL(guard) NEARGYE_SCOPE_GUARD_WITH(::scope_guard::detail::make_scope_fail(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
+#define WITH_SCOPE_FAIL(guard) NEARGYE_SCOPE_GUARD_WITH(NEARGYE_MAYBE_UNUSED ::scope_guard::detail::make_scope_fail(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
 
 // SCOPE_SUCCESS executing action on scope exit when no exceptions have been thrown before scope exit.
 #define MAKE_SCOPE_SUCCESS(name)  auto name = ::scope_guard::detail::scope_success_tag{} << NEARGYE_MAKE_SCOPE_GUARD_ACTION
 #define SCOPE_SUCCESS             NEARGYE_MAYBE_UNUSED const MAKE_SCOPE_SUCCESS(NEARGYE_STR_CONCAT(NEARGYE_SCOPE_SUCCESS_, NEARGYE_COUNTER))
-#define WITH_SCOPE_SUCCESS(guard) NEARGYE_SCOPE_GUARD_WITH(::scope_guard::detail::make_scope_success(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
+#define WITH_SCOPE_SUCCESS(guard) NEARGYE_SCOPE_GUARD_WITH(NEARGYE_MAYBE_UNUSED ::scope_guard::detail::make_scope_success(NEARGYE_MAKE_SCOPE_GUARD_ACTION{ guard }))
 
 // DEFER executing action on scope exit.
 #define MAKE_DEFER(name)  MAKE_SCOPE_EXIT(name)

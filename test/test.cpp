@@ -25,6 +25,7 @@
 
 #define TROMPELOEIL_SANITY_CHECKS
 #include <trompeloeil.hpp>
+#include <catch_trompeloeil.hpp>
 
 #define SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE
 #include <scope_guard.hpp>

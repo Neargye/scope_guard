@@ -158,13 +158,6 @@ scope_exit, scope_fail, scope_success implement scope_guard interface.
 
 You should add required file [scope_guard.hpp](include/scope_guard.hpp).
 
-## Compiler compatibility
-
-* Clang/LLVM >= 5
-* MSVC++ >= 14.0 / Visual Studio >= 2015
-* Xcode >= 9
-* GCC >= 5
-
 ## References
 
 * [Andrei Alexandrescu "Systematic Error Handling in C++"](https://channel9.msdn.com/Shows/Going+Deep/C-and-Beyond-2012-Andrei-Alexandrescu-Systematic-Error-Handling-in-C)

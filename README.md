@@ -1,14 +1,3 @@
-```text
-  _____                         _____                     _    _____
- / ____|                       / ____|                   | |  / ____|_     _
-| (___   ___ ___  _ __   ___  | |  __ _   _  __ _ _ __ __| | | |   _| |_ _| |_
- \___ \ / __/ _ \| '_ \ / _ \ | | |_ | | | |/ _` | '__/ _` | | |  |_   _|_   _|
- ____) | (_| (_) | |_) |  __/ | |__| | |_| | (_| | | | (_| | | |____|_|   |_|
-|_____/ \___\___/| .__/ \___|  \_____|\__,_|\__,_|_|  \__,_|  \_____|
-                 | |
-                 |_|
-```
-
 [![Github Releases](https://img.shields.io/github/release/Neargye/scope_guard.svg)](https://github.com/Neargye/scope_guard/releases)
 [![License](https://img.shields.io/github/license/Neargye/scope_guard.svg)](LICENSE)
 

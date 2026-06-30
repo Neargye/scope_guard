@@ -1,4 +1,4 @@
-[![Github Releases](https://img.shields.io/github/release/Neargye/scope_guard.svg)](https://github.com/Neargye/scope_guard/releases)
+[![GitHub Releases](https://img.shields.io/github/release/Neargye/scope_guard.svg)](https://github.com/Neargye/scope_guard/releases)
 [![License](https://img.shields.io/github/license/Neargye/scope_guard.svg)](LICENSE)
 
 # Scope Guard & Defer C++
@@ -27,6 +27,8 @@ Normal C++ control flow such as `return`, `break`, `continue`, and exceptions do
 * [Scope Guard on exit](example/scope_exit_example.cpp)
 
   ```cpp
+  #include <scope_guard.hpp>
+
   std::fstream file("test.txt");
   SCOPE_EXIT{ file.close(); }; // File closes when the enclosing scope is left.
   ```
@@ -125,7 +127,13 @@ Guards returned by `scope_guard::make_scope_exit`, `scope_guard::make_scope_fail
 
 * By default, `SCOPE_GUARD_MAY_THROW_ACTION` is used. If an action throws while another exception is being unwound, the program may terminate. Define `SCOPE_GUARD_NO_THROW_ACTION` or `SCOPE_GUARD_SUPPRESS_THROW_ACTION` for cleanup paths that must not throw.
 
-* `SCOPE_GUARD_CATCH_HANDLER` - define this to add an exception handler. If `SCOPE_GUARD_SUPPRESS_THROW_ACTION` is not defined, it does nothing.
+* `SCOPE_GUARD_CATCH_HANDLER` - define this to add an exception handler statement. If `SCOPE_GUARD_SUPPRESS_THROW_ACTION` is not defined, it does nothing.
+
+  ```cpp
+  #define SCOPE_GUARD_SUPPRESS_THROW_ACTION
+  #define SCOPE_GUARD_CATCH_HANDLER /* log cleanup failure */ ;
+  #include <scope_guard.hpp>
+  ```
 
 ### Remarks
 
@@ -151,6 +159,13 @@ For CMake integration, add this project as a subdirectory and link the interface
 
 ```cmake
 add_subdirectory(scope_guard)
+target_link_libraries(your_target PRIVATE scope_guard::scope_guard)
+```
+
+If scope_guard is installed as a CMake package:
+
+```cmake
+find_package(scope_guard CONFIG REQUIRED)
 target_link_libraries(your_target PRIVATE scope_guard::scope_guard)
 ```
 

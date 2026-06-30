@@ -85,6 +85,7 @@ int main() {
   // prints "[1] write to file".
   // prints "[1] close file #2".
   // prints "[1] close file".
+  // prints "exception in scope_guard!".
   // prints "[1] error".
   // prints "[2] write to file".
   // prints "[2] close file".

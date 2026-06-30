@@ -1,6 +1,6 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2018 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2018 - 2026 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -20,20 +20,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#define CATCH_CONFIG_MAIN
-#include <catch.hpp>
-
-#define TROMPELOEIL_SANITY_CHECKS
-#include <trompeloeil.hpp>
-#include <catch_trompeloeil.hpp>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
 
 #define SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE
 #include <scope_guard.hpp>
 
 #include <stdexcept>
+#include <type_traits>
 
 struct ExecutionCounter {
-  MAKE_MOCK0(Execute, void());
+  void Execute() {
+    ++count;
+  }
+
+  int count = 0;
 };
 
 class F {
@@ -48,116 +49,214 @@ public:
   void operator() () {}
 };
 
+struct LvalueNoexceptRvalueThrow {
+  void operator() () & noexcept {}
+  void operator() () && {}
+};
+
+struct RvalueOnly {
+  void operator() () && {}
+};
+
+struct ReturnsInt {
+  int operator() () {
+    return 0;
+  }
+};
+
+static_assert(scope_guard::detail::is_noarg_returns_void_action<LvalueNoexceptRvalueThrow&>::value,
+              "scope_guard should validate the stored action as an lvalue.");
+static_assert(!scope_guard::detail::is_noarg_returns_void_action<RvalueOnly&>::value,
+              "scope_guard should reject actions that cannot be called as stored lvalues.");
+static_assert(!scope_guard::detail::is_noarg_returns_void_action<ReturnsInt&>::value,
+              "scope_guard should reject actions that do not return void.");
+static_assert(std::is_nothrow_destructible<decltype(scope_guard::make_scope_exit(LvalueNoexceptRvalueThrow{}))>::value,
+              "scope_guard should compute noexcept from the stored lvalue action.");
+
+int with_scope_return_count = 0;
+
+int return_from_with_scope_exit() {
+  WITH_SCOPE_EXIT({ ++with_scope_return_count; }) {
+    return 1;
+  }
+
+  return 0;
+}
+
 TEST_CASE("called on scope leave") {
-  SECTION("scope_exit") {
+  SUBCASE("scope_exit") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
 
     REQUIRE_NOTHROW([&]() {
       SCOPE_EXIT{ m.Execute(); };
     }());
+    REQUIRE(m.count == 1);
   }
 
-  SECTION("scope_fail") {
+  SUBCASE("scope_fail") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_NOTHROW([&]() {
       SCOPE_FAIL{ m.Execute(); };
     }());
+    REQUIRE(m.count == 0);
   }
 
-  SECTION("scope_success") {
+  SUBCASE("scope_success") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
 
     REQUIRE_NOTHROW([&]() {
       SCOPE_SUCCESS{ m.Execute(); };
     }());
+    REQUIRE(m.count == 1);
+  }
+}
+
+TEST_CASE("with scope guard executes on scope leave") {
+  SUBCASE("scope_exit normal leave") {
+    int count = 0;
+
+    WITH_SCOPE_EXIT({ ++count; }) {
+      REQUIRE(count == 0);
+    }
+
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("scope_exit break") {
+    int count = 0;
+
+    WITH_SCOPE_EXIT({ ++count; }) {
+      break;
+    }
+
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("scope_exit exception") {
+    int count = 0;
+
+    REQUIRE_THROWS([&]() {
+      WITH_SCOPE_EXIT({ ++count; }) {
+        throw std::exception{};
+      }
+    }());
+
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("scope_exit return") {
+    with_scope_return_count = 0;
+
+    REQUIRE(return_from_with_scope_exit() == 1);
+    REQUIRE(with_scope_return_count == 1);
+  }
+
+  SUBCASE("scope_fail exception") {
+    int count = 0;
+
+    REQUIRE_THROWS([&]() {
+      WITH_SCOPE_FAIL({ ++count; }) {
+        throw std::exception{};
+      }
+    }());
+
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("scope_success normal leave") {
+    int count = 0;
+
+    WITH_SCOPE_SUCCESS({ ++count; }) {
+      REQUIRE(count == 0);
+    }
+
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("scope_success exception") {
+    int count = 0;
+
+    REQUIRE_THROWS([&]() {
+      WITH_SCOPE_SUCCESS({ ++count; }) {
+        throw std::exception{};
+      }
+    }());
+
+    REQUIRE(count == 0);
   }
 }
 
 TEST_CASE("called on exception") {
-  SECTION("scope_exit") {
+  SUBCASE("scope_exit") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
 
     REQUIRE_THROWS([&]() {
       SCOPE_EXIT{ m.Execute(); };
 
       throw std::exception{};
     }());
+    REQUIRE(m.count == 1);
   }
 
-  SECTION("scope_fail") {
+  SUBCASE("scope_fail") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
 
     REQUIRE_THROWS([&]() {
       SCOPE_FAIL{ m.Execute(); };
 
       throw std::exception{};
     }());
+    REQUIRE(m.count == 1);
   }
 
-  SECTION("scope_success") {
+  SUBCASE("scope_success") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_THROWS([&]() {
       SCOPE_SUCCESS{ m.Execute(); };
 
       throw std::exception{};
     }());
+    REQUIRE(m.count == 0);
   }
 }
 
 TEST_CASE("dismiss before scope leave") {
-  SECTION("scope_exit") {
+  SUBCASE("scope_exit") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_NOTHROW([&]() {
       MAKE_SCOPE_EXIT(sg){ m.Execute(); };
       sg.dismiss();
     }());
+    REQUIRE(m.count == 0);
   }
 
-  SECTION("scope_fail") {
+  SUBCASE("scope_fail") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_NOTHROW([&]() {
       MAKE_SCOPE_FAIL(sg){ m.Execute(); };
       sg.dismiss();
     }());
+    REQUIRE(m.count == 0);
   }
 
-  SECTION("scope_success") {
+  SUBCASE("scope_success") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_NOTHROW([&]() {
       MAKE_SCOPE_SUCCESS(sg){ m.Execute(); };
       sg.dismiss();
     }());
+    REQUIRE(m.count == 0);
   }
 }
 
 TEST_CASE("dismiss before exception") {
-  SECTION("scope_exit") {
+  SUBCASE("scope_exit") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_EXIT(sg){ m.Execute(); };
@@ -166,12 +265,11 @@ TEST_CASE("dismiss before exception") {
 
       throw std::exception{};
     }());
+    REQUIRE(m.count == 0);
   }
 
-  SECTION("scope_fail") {
+  SUBCASE("scope_fail") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_FAIL(sg){ m.Execute(); };
@@ -180,12 +278,11 @@ TEST_CASE("dismiss before exception") {
 
       throw std::exception{};
     }());
+    REQUIRE(m.count == 0);
   }
 
-  SECTION("scope_success") {
+  SUBCASE("scope_success") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_SUCCESS(sg){ m.Execute(); };
@@ -194,14 +291,13 @@ TEST_CASE("dismiss before exception") {
 
       throw std::exception{};
     }());
+    REQUIRE(m.count == 0);
   }
 }
 
 TEST_CASE("called on exception, dismiss after exception") {
-  SECTION("scope_exit") {
+  SUBCASE("scope_exit") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
 
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_EXIT(sg){ m.Execute(); };
@@ -210,12 +306,11 @@ TEST_CASE("called on exception, dismiss after exception") {
 
       sg.dismiss();
     }());
+    REQUIRE(m.count == 1);
   }
 
-  SECTION("scope_fail") {
+  SUBCASE("scope_fail") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(1));
 
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_FAIL(sg){ m.Execute(); };
@@ -224,12 +319,11 @@ TEST_CASE("called on exception, dismiss after exception") {
 
       sg.dismiss();
     }());
+    REQUIRE(m.count == 1);
   }
 
-  SECTION("scope_success") {
+  SUBCASE("scope_success") {
     ExecutionCounter m;
-    REQUIRE_CALL_V(m, Execute(),
-                   .TIMES(0));
 
     REQUIRE_THROWS([&]() {
       MAKE_SCOPE_SUCCESS(sg){ m.Execute(); };
@@ -238,5 +332,6 @@ TEST_CASE("called on exception, dismiss after exception") {
 
       sg.dismiss();
     }());
+    REQUIRE(m.count == 0);
   }
 }

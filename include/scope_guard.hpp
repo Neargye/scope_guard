@@ -5,11 +5,11 @@
 //  ____) | (_| (_) | |_) |  __/ | |__| | |_| | (_| | | | (_| | | |____|_|   |_|
 // |_____/ \___\___/| .__/ \___|  \_____|\__,_|\__,_|_|  \__,_|  \_____|
 //                  | | https://github.com/Neargye/scope_guard
-//                  |_| version 0.9.1
+//                  |_| version 0.9.2
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2018 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2018 - 2026 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -34,9 +34,11 @@
 
 #define SCOPE_GUARD_VERSION_MAJOR 0
 #define SCOPE_GUARD_VERSION_MINOR 9
-#define SCOPE_GUARD_VERSION_PATCH 1
+#define SCOPE_GUARD_VERSION_PATCH 2
 
+#include <cstddef>
 #include <type_traits>
+#include <utility>
 #if (defined(_MSC_VER) && _MSC_VER >= 1900) || ((defined(__clang__) || defined(__GNUC__)) && __cplusplus >= 201700L)
 #include <exception>
 #endif
@@ -46,7 +48,7 @@
 // SCOPE_GUARD_MAY_THROW_ACTION action may throw exceptions.
 // SCOPE_GUARD_NO_THROW_ACTION requires noexcept action.
 // SCOPE_GUARD_SUPPRESS_THROW_ACTION exceptions during action will be suppressed.
-// SCOPE_GUARD_CATCH_HANDLER exceptions handler. If SCOPE_GUARD_SUPPRESS_THROW_ACTIONS is not defined, it will do nothing.
+// SCOPE_GUARD_CATCH_HANDLER exceptions handler. If SCOPE_GUARD_SUPPRESS_THROW_ACTION is not defined, it will do nothing.
 
 #if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
 #  define SCOPE_GUARD_MAY_THROW_ACTION
@@ -62,7 +64,7 @@ namespace scope_guard {
 
 namespace detail {
 
-#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || (_HAS_EXCEPTIONS))
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || (defined(_HAS_EXCEPTIONS) && _HAS_EXCEPTIONS))
 #  define NEARGYE_NOEXCEPT(...) noexcept
 #  define NEARGYE_TRY           try {
 #  define NEARGYE_CATCH         } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
@@ -102,11 +104,7 @@ namespace detail {
 #  endif
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER < 1900
-inline int uncaught_exceptions() noexcept {
-  return *(reinterpret_cast<int*>(static_cast<char*>(static_cast<void*>(_getptd())) + (sizeof(void*) == 8 ? 0x100 : 0x90)));
-}
-#elif (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
+#if (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
 struct __cxa_eh_globals;
 extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
 inline int uncaught_exceptions() noexcept {
@@ -183,13 +181,13 @@ template <typename F, typename P>
 class scope_guard {
   using A = typename std::decay<F>::type;
 
-  static_assert(is_noarg_returns_void_action<A>::value,
+  static_assert(is_noarg_returns_void_action<A&>::value,
                 "scope_guard requires no-argument action, that returns void.");
   static_assert(std::is_same<P, on_exit_policy>::value || std::is_same<P, on_fail_policy>::value || std::is_same<P, on_success_policy>::value,
                 "scope_guard requires on_exit_policy, on_fail_policy or on_success_policy.");
 #if defined(SCOPE_GUARD_NO_THROW_ACTION)
-    static_assert(is_nothrow_invocable_action<A>::value,
-                  "scope_guard requires noexcept invocable action.");
+  static_assert(is_nothrow_invocable_action<A&>::value,
+                "scope_guard requires noexcept invocable action.");
 #endif
 #if defined(SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE)
   static_assert(std::is_nothrow_move_constructible<A>::value,
@@ -226,7 +224,7 @@ class scope_guard {
     policy_.dismiss();
   }
 
-  ~scope_guard() NEARGYE_NOEXCEPT(is_nothrow_invocable_action<A>::value) {
+  ~scope_guard() NEARGYE_NOEXCEPT(is_nothrow_invocable_action<A&>::value) {
     if (policy_.should_execute()) {
       NEARGYE_TRY
         action_();
@@ -238,7 +236,7 @@ class scope_guard {
 template <typename F>
 using scope_exit = scope_guard<F, on_exit_policy>;
 
-template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 NEARGYE_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_FWD(action)})) {
   return scope_exit<F>{NEARGYE_FWD(action)};
 }
@@ -246,7 +244,7 @@ NEARGYE_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(sc
 template <typename F>
 using scope_fail = scope_guard<F, on_fail_policy>;
 
-template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 NEARGYE_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_FWD(action)})) {
   return scope_fail<F>{NEARGYE_FWD(action)};
 }
@@ -254,28 +252,28 @@ NEARGYE_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(sc
 template <typename F>
 using scope_success = scope_guard<F, on_success_policy>;
 
-template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 NEARGYE_NODISCARD scope_success<F> make_scope_success(F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_FWD(action)})) {
   return scope_success<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_exit_tag {};
 
-template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 scope_exit<F> operator<<(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_FWD(action)})) {
   return scope_exit<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_fail_tag {};
 
-template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 scope_fail<F> operator<<(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_FWD(action)})) {
   return scope_fail<F>{NEARGYE_FWD(action)};
 }
 
 struct scope_success_tag {};
 
-template <typename F, typename std::enable_if<is_noarg_returns_void_action<F>::value, int>::type = 0>
+template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 scope_success<F> operator<<(scope_success_tag, F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_FWD(action)})) {
   return scope_success<F>{NEARGYE_FWD(action)};
 }
@@ -343,8 +341,8 @@ using detail::make_scope_success;
 #define NEARGYE_MAKE_SCOPE_FAIL    ::scope_guard::detail::scope_fail_tag{}    << NEARGYE_MAKE_SCOPE_GUARD_ACTION
 #define NEARGYE_MAKE_SCOPE_SUCCESS ::scope_guard::detail::scope_success_tag{} << NEARGYE_MAKE_SCOPE_GUARD_ACTION
 
-#define NEARGYE_SCOPE_GUARD_WITH_(g, i) for (int i = 1; i--; g)
-#define NEARGYE_SCOPE_GUARD_WITH(g)     NEARGYE_SCOPE_GUARD_WITH_(g, NEARGYE_STR_CONCAT(NEARGYE_INTERNAL_OBJECT_, NEARGYE_COUNTER))
+#define NEARGYE_SCOPE_GUARD_WITH_(g, i, j) for (bool i = true; i; i = false) for (auto j = g; i; i = false)
+#define NEARGYE_SCOPE_GUARD_WITH(g)        NEARGYE_SCOPE_GUARD_WITH_(g, NEARGYE_STR_CONCAT(NEARGYE_INTERNAL_FLAG_, NEARGYE_COUNTER), NEARGYE_STR_CONCAT(NEARGYE_INTERNAL_OBJECT_, NEARGYE_COUNTER))
 
 // SCOPE_EXIT executing action on scope exit.
 #define MAKE_SCOPE_EXIT(name)  auto name = NEARGYE_MAKE_SCOPE_EXIT

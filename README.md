@@ -3,15 +3,15 @@
 
 # Scope Guard & Defer C++
 
-Scope Guard statement invokes a function with deferred execution until surrounding function returns in cases:
+Scope Guard statement invokes a function with deferred execution when the surrounding scope is left:
 
-* scope_exit - executing action on scope exit.
+* scope_exit - executes the action on scope exit.
 
-* scope_fail - executing action on scope exit when an exception has been thrown.
+* scope_fail - executes the action on scope exit if the scope is left during exception unwinding.
 
-* scope_success - executing action on scope exit when no exceptions have been thrown.
+* scope_success - executes the action on scope exit if the scope is not left during exception unwinding.
 
-Program control transferring does not influence Scope Guard statement execution. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occurs.
+Normal C++ control flow such as `return`, `break`, `continue`, and exceptions does not bypass guard destruction; actions run according to the selected guard policy. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occurs.
 
 ## Features
 
@@ -19,7 +19,7 @@ Program control transferring does not influence Scope Guard statement execution.
 * Header-only
 * Dependency-free
 * Thin callback wrapping, no added std::function or virtual table penalties
-* No implicitly ignored return, check callback return void
+* No implicitly ignored return, callbacks must return void
 * Defer or Scope Guard syntax and "With" syntax
 
 ## [Examples](example)
@@ -28,7 +28,7 @@ Program control transferring does not influence Scope Guard statement execution.
 
   ```cpp
   std::fstream file("test.txt");
-  SCOPE_EXIT{ file.close(); }; // File closes when exit the enclosing scope or errors occur.
+  SCOPE_EXIT{ file.close(); }; // File closes when the enclosing scope is left.
   ```
 
 * [Scope Guard on fail](example/scope_fail_example.cpp)
@@ -51,8 +51,8 @@ Program control transferring does not influence Scope Guard statement execution.
   ```cpp
   persons.push_back(person); // Add the person to db.
 
-  MAKE_SCOPE_EXIT(scope_exit) { // Following block is executed when exit the enclosing scope or errors occur.
-    persons.pop_back(); // If the db insertion fails, we should roll back.
+  MAKE_SCOPE_EXIT(scope_exit) { // The action is executed when the enclosing scope is left.
+    persons.pop_back(); // If the db insertion fails, roll back.
   };
   // MAKE_SCOPE_EXIT(name) {action} - macro is used to create a new scope_exit object.
   scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
@@ -61,8 +61,8 @@ Program control transferring does not influence Scope Guard statement execution.
   ```cpp
   persons.push_back(person); // Add the person to db.
 
-  auto scope_exit = make_scope_exit([]() { persons.pop_back(); });
-  // make_scope_exit(A&& action) - function is used to create a new scope_exit object. It can be instantiated with a lambda function, a std::function<void()>, a functor, or a void(*)() function pointer.
+  auto scope_exit = scope_guard::make_scope_exit([]() { persons.pop_back(); });
+  // make_scope_exit(F&& action) - function is used to create a new scope_exit object. It can be instantiated with a lambda function, an rvalue std::function<void()>, an rvalue functor, or a void(*)() function pointer.
   // ...
   scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
   ```
@@ -71,9 +71,9 @@ Program control transferring does not influence Scope Guard statement execution.
 
   ```cpp
   std::fstream file("test.txt");
-  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when exit the enclosing with scope or errors occur.
+  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when the enclosing with scope is left.
     // ...
-  };
+  }
   ```
 
 ## Synopsis
@@ -82,50 +82,50 @@ Program control transferring does not influence Scope Guard statement execution.
 
 #### scope_exit
 
-* `scope_exit<F> make_scope_exit(F&& action);` - return scope_exit with the action.
+* `scope_guard::make_scope_exit(F&& action);` - returns a scope_exit guard with the action.
 * `SCOPE_EXIT{action};` - macro for creating scope_exit with the action.
 * `MAKE_SCOPE_EXIT(name) {action};` - macro for creating named scope_exit with the action.
-* `WITH_SCOPE_EXIT({action}) {/*...*/};` - macro for creating scope with scope_exit with the action.
+* `WITH_SCOPE_EXIT({action}) {/*...*/}` - macro for creating a scope with scope_exit with the action.
 
 #### scope_fail
 
-* `scope_fail<F> make_scope_fail(F&& action);` - return scope_fail with the action.
+* `scope_guard::make_scope_fail(F&& action);` - returns a scope_fail guard with the action.
 * `SCOPE_FAIL{action};` - macro for creating scope_fail with the action.
 * `MAKE_SCOPE_FAIL(name) {action};` - macro for creating named scope_fail with the action.
-* `WITH_SCOPE_FAIL({action}) {/*...*/};` - macro for creating scope with scope_fail with the action.
+* `WITH_SCOPE_FAIL({action}) {/*...*/}` - macro for creating a scope with scope_fail with the action.
 
 #### scope_success
 
-* `scope_success<F> make_scope_success(F&& action);` - return scope_success with the action.
+* `scope_guard::make_scope_success(F&& action);` - returns a scope_success guard with the action.
 * `SCOPE_SUCCESS{action};` - macro for creating scope_success with the action.
 * `MAKE_SCOPE_SUCCESS(name) {action};` - macro for creating named scope_success with the action.
-* `WITH_SCOPE_SUCCESS({action}) {/*...*/};` - macro for creating scope with scope_success with the action.
+* `WITH_SCOPE_SUCCESS({action}) {/*...*/}` - macro for creating a scope with scope_success with the action.
 
 #### defer
 
 * `DEFER{action};` - macro for creating defer with the action.
 * `MAKE_DEFER(name) {action};` - macro for creating named defer with the action.
-* `WITH_DEFER({action}) {/*...*/};` - macro for creating scope with defer with the action.
+* `WITH_DEFER({action}) {/*...*/}` - macro for creating a scope with defer with the action.
 
 ### Interface of scope_guard
 
-scope_exit, scope_fail, scope_success implement scope_guard interface.
+Guards returned by `scope_guard::make_scope_exit`, `scope_guard::make_scope_fail`, `scope_guard::make_scope_success`, and guards created by macros implement the scope_guard interface.
 
-* `dismiss()` - dismiss executing action on scope exit.
+* `dismiss()` - disables executing the action on scope exit.
 
 #### Throwable settings
 
-* `SCOPE_GUARD_NOTHROW_CONSTRUCTIBLE` define this to require nothrow constructible action.
+* `SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE` - define this to require a nothrow move-constructible action.
 
-* `SCOPE_GUARD_MAY_THROW_ACTION` define this to action may throw exceptions.
+* `SCOPE_GUARD_MAY_THROW_ACTION` - define this to allow the action to throw exceptions.
 
-* `SCOPE_GUARD_NO_THROW_ACTION` define this to require noexcept action.
+* `SCOPE_GUARD_NO_THROW_ACTION` - define this to require a noexcept action.
 
-* `SCOPE_GUARD_SUPPRESS_THROW_ACTIONS` define this to exceptions during action will be suppressed.
+* `SCOPE_GUARD_SUPPRESS_THROW_ACTION` - define this to suppress exceptions thrown by the action.
 
-* By default using `SCOPE_GUARD_MAY_THROW_ACTION`.
+* By default, `SCOPE_GUARD_MAY_THROW_ACTION` is used. If an action throws while another exception is being unwound, the program may terminate. Define `SCOPE_GUARD_NO_THROW_ACTION` or `SCOPE_GUARD_SUPPRESS_THROW_ACTION` for cleanup paths that must not throw.
 
-* `SCOPE_GUARD_CATCH_HANDLER` define this to add exceptions handler. If `SCOPE_GUARD_SUPPRESS_THROW_ACTIONS` is not defined, it will do nothing.
+* `SCOPE_GUARD_CATCH_HANDLER` - define this to add an exception handler. If `SCOPE_GUARD_SUPPRESS_THROW_ACTION` is not defined, it does nothing.
 
 ### Remarks
 
@@ -145,7 +145,14 @@ scope_exit, scope_fail, scope_success implement scope_guard interface.
 
 ## Integration
 
-You should add required file [scope_guard.hpp](include/scope_guard.hpp).
+For manual integration, add the required file [scope_guard.hpp](include/scope_guard.hpp).
+
+For CMake integration, add this project as a subdirectory and link the interface target:
+
+```cmake
+add_subdirectory(scope_guard)
+target_link_libraries(your_target PRIVATE scope_guard::scope_guard)
+```
 
 ## References
 

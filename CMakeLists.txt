@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.14)
 
-project(scope_guard VERSION "0.9.1" LANGUAGES CXX)
+project(scope_guard VERSION "0.9.2" LANGUAGES CXX)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(IS_TOPLEVEL_PROJECT TRUE)
@@ -29,6 +29,7 @@ target_include_directories(${PROJECT_NAME}
         INTERFACE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:include>)
+target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_11)
 
 write_basic_package_version_file(${PROJECT_NAME}ConfigVersion.cmake
         VERSION ${PROJECT_VERSION}

@@ -157,6 +157,6 @@ target_link_libraries(your_target PRIVATE scope_guard::scope_guard)
 ## References
 
 * [Andrei Alexandrescu "Systematic Error Handling in C++"](https://channel9.msdn.com/Shows/Going+Deep/C-and-Beyond-2012-Andrei-Alexandrescu-Systematic-Error-Handling-in-C)
-* [Andrei Alexandrescu “Declarative Control Flow"](https://youtu.be/WjTrfoiB0MQ)
+* [Andrei Alexandrescu "Declarative Control Flow"](https://youtu.be/WjTrfoiB0MQ)
 
 ## Licensed under the [MIT License](LICENSE)

@@ -28,6 +28,7 @@
 
 #include <stdexcept>
 #include <type_traits>
+#include <utility>
 
 struct ExecutionCounter {
   void Execute() {
@@ -74,9 +75,22 @@ static_assert(std::is_nothrow_destructible<decltype(scope_guard::make_scope_exit
               "scope_guard should compute noexcept from the stored lvalue action.");
 
 int with_scope_return_count = 0;
+int function_pointer_count = 0;
+
+void function_pointer_cleanup() {
+  ++function_pointer_count;
+}
 
 int return_from_with_scope_exit() {
   WITH_SCOPE_EXIT({ ++with_scope_return_count; }) {
+    return 1;
+  }
+
+  return 0;
+}
+
+int return_from_with_defer() {
+  WITH_DEFER({ ++with_scope_return_count; }) {
     return 1;
   }
 
@@ -110,6 +124,63 @@ TEST_CASE("called on scope leave") {
     }());
     REQUIRE(m.count == 1);
   }
+}
+
+TEST_CASE("factory functions create guards") {
+  SUBCASE("make_scope_exit") {
+    int count = 0;
+
+    REQUIRE_NOTHROW([&]() {
+      auto sg = scope_guard::make_scope_exit([&]() { ++count; });
+    }());
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("make_scope_fail") {
+    int count = 0;
+
+    REQUIRE_THROWS([&]() {
+      auto sg = scope_guard::make_scope_fail([&]() { ++count; });
+
+      throw std::exception{};
+    }());
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("make_scope_success") {
+    int count = 0;
+
+    REQUIRE_NOTHROW([&]() {
+      auto sg = scope_guard::make_scope_success([&]() { ++count; });
+    }());
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("function pointer action") {
+    function_pointer_count = 0;
+
+    REQUIRE_NOTHROW([&]() {
+      auto sg = scope_guard::make_scope_exit(&function_pointer_cleanup);
+    }());
+    REQUIRE(function_pointer_count == 1);
+  }
+}
+
+TEST_CASE("move transfers execution ownership") {
+  int count = 0;
+
+  REQUIRE_NOTHROW([&]() {
+    auto sg1 = scope_guard::make_scope_exit([&]() { ++count; });
+    auto sg2 = std::move(sg1);
+  }());
+
+  REQUIRE(count == 1);
+}
+
+TEST_CASE("default action exceptions propagate") {
+  REQUIRE_THROWS_AS([&]() {
+    SCOPE_EXIT{ throw std::runtime_error{"cleanup failure"}; };
+  }(), std::runtime_error);
 }
 
 TEST_CASE("with scope guard executes on scope leave") {
@@ -164,6 +235,16 @@ TEST_CASE("with scope guard executes on scope leave") {
     REQUIRE(count == 1);
   }
 
+  SUBCASE("scope_fail normal leave") {
+    int count = 0;
+
+    WITH_SCOPE_FAIL({ ++count; }) {
+      REQUIRE(count == 0);
+    }
+
+    REQUIRE(count == 0);
+  }
+
   SUBCASE("scope_success normal leave") {
     int count = 0;
 
@@ -184,6 +265,34 @@ TEST_CASE("with scope guard executes on scope leave") {
     }());
 
     REQUIRE(count == 0);
+  }
+}
+
+TEST_CASE("defer aliases scope_exit") {
+  SUBCASE("defer") {
+    int count = 0;
+
+    REQUIRE_NOTHROW([&]() {
+      DEFER{ ++count; };
+    }());
+    REQUIRE(count == 1);
+  }
+
+  SUBCASE("make_defer") {
+    int count = 0;
+
+    REQUIRE_NOTHROW([&]() {
+      MAKE_DEFER(sg){ ++count; };
+      sg.dismiss();
+    }());
+    REQUIRE(count == 0);
+  }
+
+  SUBCASE("with_defer return") {
+    with_scope_return_count = 0;
+
+    REQUIRE(return_from_with_defer() == 1);
+    REQUIRE(with_scope_return_count == 1);
   }
 }
 

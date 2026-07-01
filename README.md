@@ -64,7 +64,7 @@ Normal C++ control flow such as `return`, `break`, `continue`, and exceptions do
   persons.push_back(person); // Add the person to db.
 
   auto scope_exit = scope_guard::make_scope_exit([]() { persons.pop_back(); });
-  // make_scope_exit(F&& action) - function is used to create a new scope_exit object. It can be instantiated with a lambda function, an rvalue std::function<void()>, an rvalue functor, or a void(*)() function pointer.
+  // make_scope_exit(F&& action) - function is used to create a new scope_exit object. It accepts an rvalue callable: a lambda expression, an rvalue std::function<void()>, an rvalue functor, or a void(*)() function pointer. Lvalue callables are intentionally rejected; use std::move if needed.
   // ...
   scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
   ```
@@ -137,6 +137,14 @@ Guards returned by `scope_guard::make_scope_exit`, `scope_guard::make_scope_fail
 
 ### Remarks
 
+* `make_scope_exit`, `make_scope_fail`, and `make_scope_success` only accept rvalue callables. Lvalue callables are intentionally rejected to prevent dangling references. Pass a temporary or use `std::move`:
+
+  ```cpp
+  auto action = [&]() { /* cleanup */ };
+  auto guard = scope_guard::make_scope_exit(std::move(action)); // OK
+  // auto guard = scope_guard::make_scope_exit(action); // compile error
+  ```
+
 * If multiple Scope Guard statements appear in the same scope, the order they appear is the reverse of the order they are executed.
 
   ```cpp
@@ -171,7 +179,7 @@ target_link_libraries(your_target PRIVATE scope_guard::scope_guard)
 
 ## References
 
-* [Andrei Alexandrescu "Systematic Error Handling in C++"](https://channel9.msdn.com/Shows/Going+Deep/C-and-Beyond-2012-Andrei-Alexandrescu-Systematic-Error-Handling-in-C)
+* [Andrei Alexandrescu "Systematic Error Handling in C++"](https://www.youtube.com/watch?v=kaI4R0Ng4E8)
 * [Andrei Alexandrescu "Declarative Control Flow"](https://youtu.be/WjTrfoiB0MQ)
 
 ## Licensed under the [MIT License](LICENSE)

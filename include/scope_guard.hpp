@@ -64,7 +64,7 @@ namespace scope_guard {
 
 namespace detail {
 
-#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || (defined(_HAS_EXCEPTIONS) && _HAS_EXCEPTIONS))
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
 #  define NEARGYE_SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define NEARGYE_SCOPE_GUARD_TRY           try {
 #  define NEARGYE_SCOPE_GUARD_CATCH         } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
@@ -238,6 +238,7 @@ using scope_exit = scope_guard<F, on_exit_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 NEARGYE_SCOPE_GUARD_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+  static_assert(std::is_rvalue_reference<F&&>::value, "make_scope_exit requires an rvalue action; use std::move or pass a temporary.");
   return scope_exit<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
 
@@ -246,6 +247,7 @@ using scope_fail = scope_guard<F, on_fail_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 NEARGYE_SCOPE_GUARD_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+  static_assert(std::is_rvalue_reference<F&&>::value, "make_scope_fail requires an rvalue action; use std::move or pass a temporary.");
   return scope_fail<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
 
@@ -254,6 +256,7 @@ using scope_success = scope_guard<F, on_success_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
 NEARGYE_SCOPE_GUARD_NODISCARD scope_success<F> make_scope_success(F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+  static_assert(std::is_rvalue_reference<F&&>::value, "make_scope_success requires an rvalue action; use std::move or pass a temporary.");
   return scope_success<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
 

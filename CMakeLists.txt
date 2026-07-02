@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.14)
+﻿cmake_minimum_required(VERSION 3.25)
 
 project(scope_guard VERSION "0.9.3" LANGUAGES CXX)
 
@@ -21,8 +21,6 @@ if(SCOPE_GUARD_OPT_BUILD_TESTS)
     add_subdirectory(test)
 endif()
 
-include(CMakePackageConfigHelpers)
-
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME}
@@ -31,24 +29,27 @@ target_include_directories(${PROJECT_NAME}
             $<INSTALL_INTERFACE:include>)
 target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_11)
 
-write_basic_package_version_file(${PROJECT_NAME}ConfigVersion.cmake
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY AnyNewerVersion
-        ARCH_INDEPENDENT)
-
 if(SCOPE_GUARD_OPT_INSTALL)
+    include(CMakePackageConfigHelpers)
+    include(GNUInstallDirs)
+
+    write_basic_package_version_file(${PROJECT_NAME}ConfigVersion.cmake
+            VERSION ${PROJECT_VERSION}
+            COMPATIBILITY AnyNewerVersion
+            ARCH_INDEPENDENT)
+
     install(TARGETS ${PROJECT_NAME}
             EXPORT ${PROJECT_NAME}Config)
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-            DESTINATION lib/cmake/${PROJECT_NAME})
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
     install(EXPORT ${PROJECT_NAME}Config
             NAMESPACE ${PROJECT_NAME}::
-            DESTINATION lib/cmake/${PROJECT_NAME})
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
-            DESTINATION .)
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     export(EXPORT ${PROJECT_NAME}Config
             NAMESPACE ${PROJECT_NAME}::)

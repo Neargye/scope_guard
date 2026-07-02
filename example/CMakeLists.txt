@@ -13,7 +13,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 endif()
 
 function(make_example target)
-    add_executable(${target} ${target}.cpp ${CMAKE_SOURCE_DIR}/include/${CMAKE_PROJECT_NAME}.hpp)
+    add_executable(${target} ${target}.cpp ${PROJECT_SOURCE_DIR}/include/${CMAKE_PROJECT_NAME}.hpp)
     set_target_properties(${target} PROPERTIES CXX_EXTENSIONS OFF)
     target_compile_features(${target} PRIVATE cxx_std_11)
     target_compile_options(${target} PRIVATE ${OPTIONS})

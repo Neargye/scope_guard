@@ -444,3 +444,60 @@ TEST_CASE("called on exception, dismiss after exception") {
     REQUIRE(m.count == 0);
   }
 }
+
+TEST_CASE("nested scope_fail fires correctly") {
+  int inner_count = 0;
+  int outer_count = 0;
+
+  REQUIRE_THROWS([&]() {
+    SCOPE_FAIL{ ++outer_count; };
+
+    try {
+      SCOPE_FAIL{ ++inner_count; };
+      throw std::runtime_error{"inner"};
+    } catch (...) {
+      throw;
+    }
+  }());
+
+  REQUIRE(inner_count == 1);
+  REQUIRE(outer_count == 1);
+}
+
+TEST_CASE("nested scope_fail does not fire on caught exception") {
+  int inner_count = 0;
+  int outer_count = 0;
+
+  REQUIRE_NOTHROW([&]() {
+    SCOPE_FAIL{ ++outer_count; };
+
+    try {
+      SCOPE_FAIL{ ++inner_count; };
+      throw std::runtime_error{"inner"};
+    } catch (...) {
+      // caught, not rethrown
+    }
+  }());
+
+  REQUIRE(inner_count == 1);
+  REQUIRE(outer_count == 0);
+}
+
+TEST_CASE("nested scope_success fires only when no exception") {
+  int inner_count = 0;
+  int outer_count = 0;
+
+  REQUIRE_NOTHROW([&]() {
+    SCOPE_SUCCESS{ ++outer_count; };
+
+    try {
+      SCOPE_SUCCESS{ ++inner_count; };
+      throw std::runtime_error{"inner"};
+    } catch (...) {
+      // caught
+    }
+  }());
+
+  REQUIRE(inner_count == 0);
+  REQUIRE(outer_count == 1);
+}

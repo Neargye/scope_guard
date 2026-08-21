@@ -23,61 +23,83 @@
 #include <scope_guard.hpp>
 
 #include <iostream>
-#include <fstream>
 #include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace {
+
+void basic_scope_fail() {
+  std::vector<std::string> persons;
+
+  try {
+    persons.push_back("Ada");
+    SCOPE_FAIL{
+      persons.pop_back();
+      std::cout << "rolled back Ada\n";
+    };
+
+    throw std::runtime_error{"database update failed"};
+  } catch (const std::exception& error) {
+    std::cout << error.what() << '\n';
+  }
+
+  std::cout << "persons after rollback: " << persons.size() << '\n';
+}
+
+void named_scope_fail() {
+  std::vector<std::string> persons;
+
+  try {
+    persons.push_back("Grace");
+    MAKE_SCOPE_FAIL(rollback) {
+      persons.pop_back();
+      std::cout << "rolled back Grace\n";
+    };
+
+    rollback.dismiss();
+    throw std::runtime_error{"later operation failed"};
+  } catch (const std::exception& error) {
+    std::cout << error.what() << '\n';
+  }
+
+  std::cout << "persons after dismiss: " << persons.size() << '\n';
+}
+
+void factory_scope_fail() {
+  bool rolled_back = false;
+
+  try {
+    auto rollback = scope_guard::make_scope_fail([&]() {
+      rolled_back = true;
+      std::cout << "factory rollback\n";
+    });
+    (void)rollback;
+
+    throw std::runtime_error{"factory operation failed"};
+  } catch (const std::exception& error) {
+    std::cout << error.what() << '\n';
+  }
+
+  std::cout << "factory rolled back: " << (rolled_back ? "yes" : "no") << '\n';
+}
+
+void with_scope_fail() {
+  try {
+    WITH_SCOPE_FAIL({ std::cout << "leave WITH_SCOPE_FAIL on failure\n"; }) {
+      std::cout << "inside WITH_SCOPE_FAIL\n";
+      throw std::runtime_error{"WITH_SCOPE_FAIL operation failed"};
+    }
+  } catch (const std::exception& error) {
+    std::cout << error.what() << '\n';
+  }
+}
+
+} // namespace
 
 int main() {
-  try {
-    std::fstream file;
-    file.open("test.txt", std::fstream::out | std::fstream::trunc);
-    SCOPE_FAIL{
-      file.close();
-      std::cout << "[1] error write file" << std::endl;
-    };
-
-    MAKE_SCOPE_FAIL(scope_fail_1) {
-      std::cout << "[1] error write file #1" << std::endl;
-    };
-
-    auto scope_fail_2 = scope_guard::make_scope_fail([&]() {
-      std::cout << "[1] error write file #2" << std::endl;
-    });
-
-    WITH_SCOPE_FAIL({ std::cout << "[1] leave WITH_SCOPE_FAIL" << std::endl; }) {
-      std::cout << "[1] inside WITH_SCOPE_FAIL" << std::endl;
-    }
-
-    file << "example" << std::endl;
-    std::cout << "[1] write to file" << std::endl;
-
-    scope_fail_1.dismiss();
-
-    throw std::runtime_error{"error"};
-
-    scope_fail_2.dismiss();
-
-    file.close();
-  }
-  catch (...) {
-    std::cout << "[1] error" << std::endl;
-  }
-
-  std::fstream file;
-  SCOPE_FAIL{
-    file.close();
-    std::cout << "[2] error write file" << std::endl;
-  };
-  file.open("test.txt", std::fstream::out | std::fstream::trunc);
-  file << "[2] example" << std::endl;
-  std::cout << "[2] write to file" << std::endl;
-  file.close();
-
-  return 0;
-
-  // prints "[1] inside WITH_SCOPE_FAIL".
-  // prints "[1] write to file".
-  // prints "[1] error write file #2".
-  // prints "[1] error write file".
-  // prints "[1] error".
-  // prints "[2] write to file".
+  basic_scope_fail();
+  named_scope_fail();
+  factory_scope_fail();
+  with_scope_fail();
 }

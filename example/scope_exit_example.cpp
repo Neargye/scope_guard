@@ -20,73 +20,79 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 
 #define SCOPE_GUARD_SUPPRESS_THROW_ACTION
-#define SCOPE_GUARD_CATCH_HANDLER std::cout << "exception in scope_guard!" << std::endl;
+#define SCOPE_GUARD_CATCH_HANDLER std::cout << "scope guard action failed\n";
 
 #include <scope_guard.hpp>
 
-int main() {
-  try {
-    std::fstream file;
-    file.open("test.txt", std::fstream::out | std::fstream::trunc);
-    SCOPE_EXIT{
-      file.close();
-      std::cout << "[1] close file" << std::endl;
-      throw std::runtime_error{"error close file"};
-    };
+namespace {
 
-    MAKE_SCOPE_EXIT(scope_exit_1) {
-      file.close();
-      std::cout << "[1] close file #1" << std::endl;
-    };
-
-    auto scope_exit_2 = scope_guard::make_scope_exit([&]() {
-      file.close();
-      std::cout << "[1] close file #2" << std::endl;
-    });
-
-    WITH_SCOPE_EXIT({ std::cout << "[1] leave WITH_SCOPE_EXIT" << std::endl; }) {
-      std::cout << "[1] inside WITH_SCOPE_EXIT" << std::endl;
-    }
-
-    file << "example" << std::endl;
-    std::cout << "[1] write to file" << std::endl;
-
-    scope_exit_1.dismiss();
-
-    throw std::runtime_error{"error"};
-
-    scope_exit_2.dismiss();
-
-    file.close();
-  }
-  catch (...) {
-    std::cout << "[1] error" << std::endl;
+void basic_scope_exit() {
+  std::fstream file{"test.txt", std::fstream::out | std::fstream::trunc};
+  if (!file) {
+    std::cerr << "failed to open test.txt\n";
+    return;
   }
 
-  std::fstream file;
   SCOPE_EXIT{
     file.close();
-    std::cout << "[2] close file" << std::endl;
+    std::cout << "file closed\n";
   };
-  file.open("test.txt", std::fstream::out | std::fstream::trunc);
-  file << "[2] example" << std::endl;
-  std::cout << "[2] write to file" << std::endl;
-  file.close();
 
-  return 0;
+  file << "scope_exit example\n";
+  std::cout << "file written\n";
+}
 
-  // prints "[1] inside WITH_SCOPE_EXIT".
-  // prints "[1] leave WITH_SCOPE_EXIT".
-  // prints "[1] write to file".
-  // prints "[1] close file #2".
-  // prints "[1] close file".
-  // prints "exception in scope_guard!".
-  // prints "[1] error".
-  // prints "[2] write to file".
-  // prints "[2] close file".
+void named_scope_exit() {
+  MAKE_SCOPE_EXIT(rollback) {
+    std::cout << "named rollback\n";
+  };
+
+  std::cout << "operation committed\n";
+  rollback.dismiss();
+}
+
+void factory_scope_exit() {
+  auto cleanup = scope_guard::make_scope_exit([]() {
+    std::cout << "factory cleanup\n";
+  });
+  (void)cleanup;
+
+  std::cout << "factory body\n";
+}
+
+void with_scope_exit() {
+  WITH_SCOPE_EXIT({ std::cout << "leave WITH_SCOPE_EXIT\n"; }) {
+    std::cout << "inside WITH_SCOPE_EXIT\n";
+  }
+}
+
+void defer() {
+  DEFER{
+    std::cout << "deferred action\n";
+  };
+
+  std::cout << "before deferred action\n";
+}
+
+void suppressed_action_exception() {
+  SCOPE_EXIT{
+    std::cout << "throwing scope guard action\n";
+    throw std::runtime_error{"cleanup failed"};
+  };
+}
+
+} // namespace
+
+int main() {
+  basic_scope_exit();
+  named_scope_exit();
+  factory_scope_exit();
+  with_scope_exit();
+  defer();
+  suppressed_action_exception();
 }

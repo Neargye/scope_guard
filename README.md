@@ -3,15 +3,15 @@
 
 # Scope Guard & Defer C++
 
-Scope Guard statement invokes a function with deferred execution when the surrounding scope is left:
+A scope guard runs a deferred action when its scope is left:
 
-* scope_exit - executes the action on scope exit.
+* `scope_exit` - executes the action on scope exit.
 
-* scope_fail - executes the action on scope exit if the scope is left during exception unwinding.
+* `scope_fail` - executes the action if the scope is left during exception unwinding.
 
-* scope_success - executes the action on scope exit if the scope is not left during exception unwinding.
+* `scope_success` - executes the action if the scope is not left during exception unwinding.
 
-Normal C++ control flow such as `return`, `break`, `continue`, and exceptions does not bypass guard destruction; actions run according to the selected guard policy. Hence, Scope Guard statement can be used to perform manual resource management, such as file descriptors closing, and to perform actions even if an error occurs.
+Normal C++ control flow, including `return`, `break`, `continue`, and exceptions, still destroys the guard. This makes scope guards useful for cleanup and rollback across different exit paths.
 
 ## Features
 
@@ -24,7 +24,7 @@ Normal C++ control flow such as `return`, `break`, `continue`, and exceptions do
 
 ## [Examples](example)
 
-* [Scope Guard on exit](example/scope_exit_example.cpp)
+* [Scope Guard on exit and defer](example/scope_exit_example.cpp)
 
   ```cpp
   #include <scope_guard.hpp>
@@ -36,47 +36,48 @@ Normal C++ control flow such as `return`, `break`, `continue`, and exceptions do
 * [Scope Guard on fail](example/scope_fail_example.cpp)
 
   ```cpp
-  persons.push_back(person); // Add the person to db.
-  SCOPE_FAIL{ persons.pop_back(); }; // If errors occur, we should roll back.
+  persons.push_back(person); // Add the person to the database.
+  SCOPE_FAIL{ persons.pop_back(); }; // Roll back if a later operation throws.
   ```
 
 * [Scope Guard on success](example/scope_success_example.cpp)
 
   ```cpp
-  person = new Person{/*...*/};
+  Person person{/*...*/};
   // ...
-  SCOPE_SUCCESS{ persons.push_back(person); }; // If no errors occur, we should add the person to db.
+  SCOPE_SUCCESS{ persons.push_back(person); }; // Add the person if the scope exits normally.
   ```
 
 * Custom Scope Guard
 
   ```cpp
-  persons.push_back(person); // Add the person to db.
+  persons.push_back(person); // Add the person to the database.
 
-  MAKE_SCOPE_EXIT(scope_exit) { // The action is executed when the enclosing scope is left.
-    persons.pop_back(); // If the db insertion fails, roll back.
+  MAKE_SCOPE_EXIT(rollback) {
+    persons.pop_back();
   };
-  // MAKE_SCOPE_EXIT(name) {action} - macro is used to create a new scope_exit object.
-  scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
+  // ...
+  rollback.dismiss(); // Commit the change and cancel the rollback.
   ```
 
   ```cpp
-  persons.push_back(person); // Add the person to db.
+  persons.push_back(person); // Add the person to the database.
 
-  auto scope_exit = scope_guard::make_scope_exit([]() { persons.pop_back(); });
-  // make_scope_exit(F&& action) - function is used to create a new scope_exit object. It accepts an rvalue callable: a lambda expression, an rvalue std::function<void()>, an rvalue functor, or a void(*)() function pointer. Lvalue callables are intentionally rejected; use std::move if needed.
+  auto rollback = scope_guard::make_scope_exit([&]() { persons.pop_back(); });
   // ...
-  scope_exit.dismiss(); // An exception was not thrown, so don't execute the scope_exit.
+  rollback.dismiss(); // Commit the change and cancel the rollback.
   ```
 
 * With Scope Guard
 
   ```cpp
   std::fstream file("test.txt");
-  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when the enclosing with scope is left.
+  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when this block is left.
     // ...
   }
   ```
+
+  > Inside `WITH_SCOPE_*`, `break` and `continue` affect only this block, not an enclosing loop. Use a regular `SCOPE_*` guard to control an outer loop.
 
 ## Synopsis
 
@@ -111,23 +112,23 @@ Normal C++ control flow such as `return`, `break`, `continue`, and exceptions do
 
 ### Interface of scope_guard
 
-Guards returned by `scope_guard::make_scope_exit`, `scope_guard::make_scope_fail`, `scope_guard::make_scope_success`, and guards created by macros implement the scope_guard interface.
+Guards created by factories and macros provide `dismiss()`, which disables the action.
 
-* `dismiss()` - disables executing the action on scope exit.
+Guards are move-only. Moving transfers responsibility for executing the action.
 
-#### Throwable settings
+#### Exception settings
 
-* `SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE` - define this to require a nothrow move-constructible action.
+* `SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE` - requires a nothrow move-constructible action. It can be combined with any action policy.
 
-* `SCOPE_GUARD_MAY_THROW_ACTION` - define this to allow the action to throw exceptions.
+* `SCOPE_GUARD_MAY_THROW_ACTION` - allows action exceptions to propagate.
 
-* `SCOPE_GUARD_NO_THROW_ACTION` - define this to require a noexcept action.
+* `SCOPE_GUARD_NO_THROW_ACTION` - requires a `noexcept` action.
 
-* `SCOPE_GUARD_SUPPRESS_THROW_ACTION` - define this to suppress exceptions thrown by the action.
+* `SCOPE_GUARD_SUPPRESS_THROW_ACTION` - suppresses exceptions thrown by the action.
 
-* By default, `SCOPE_GUARD_MAY_THROW_ACTION` is used. If an action throws while another exception is being unwound, the program may terminate. Define `SCOPE_GUARD_NO_THROW_ACTION` or `SCOPE_GUARD_SUPPRESS_THROW_ACTION` for cleanup paths that must not throw.
+* By default, `SCOPE_GUARD_MAY_THROW_ACTION` is used. Action exceptions propagate normally. If an action throws during exception unwinding, the program terminates. Use `SCOPE_GUARD_NO_THROW_ACTION` or `SCOPE_GUARD_SUPPRESS_THROW_ACTION` for cleanup paths that must not throw.
 
-* `SCOPE_GUARD_CATCH_HANDLER` - define this to add an exception handler statement. If `SCOPE_GUARD_SUPPRESS_THROW_ACTION` is not defined, it does nothing.
+* `SCOPE_GUARD_CATCH_HANDLER` - a non-throwing statement run when an action exception is caught. It is ignored unless `SCOPE_GUARD_SUPPRESS_THROW_ACTION` is defined.
 
   ```cpp
   #define SCOPE_GUARD_SUPPRESS_THROW_ACTION
@@ -135,9 +136,11 @@ Guards returned by `scope_guard::make_scope_exit`, `scope_guard::make_scope_fail
   #include <scope_guard.hpp>
   ```
 
+Define exception settings consistently in every translation unit before including `scope_guard.hpp`. `SCOPE_GUARD_CATCH_HANDLER` must not throw.
+
 ### Remarks
 
-* `make_scope_exit`, `make_scope_fail`, and `make_scope_success` only accept rvalue callables. Lvalue callables are intentionally rejected to prevent dangling references. Pass a temporary or use `std::move`:
+* Factories accept only rvalue callables and store them by value. Pass a temporary or use `std::move`:
 
   ```cpp
   auto action = [&]() { /* cleanup */ };
@@ -145,23 +148,17 @@ Guards returned by `scope_guard::make_scope_exit`, `scope_guard::make_scope_fail
   // auto guard = scope_guard::make_scope_exit(action); // compile error
   ```
 
-* If multiple Scope Guard statements appear in the same scope, the order they appear is the reverse of the order they are executed.
+* Actions take no arguments and must return `void`.
 
-  ```cpp
-  void f() {
-    SCOPE_EXIT{ std::cout << "First" << std::endl; };
-    SCOPE_EXIT{ std::cout << "Second" << std::endl; };
-    SCOPE_EXIT{ std::cout << "Third" << std::endl; };
-    ... // Other code.
-    // Prints "Third".
-    // Prints "Second".
-    // Prints "First".
-  }
-  ```
+* Macro-generated actions use `[&]` lambda capture. Use a factory function with an explicit lambda capture when different ownership is required.
+
+* Guards execute in reverse construction order.
 
 ## Integration
 
-For manual integration, add the required file [scope_guard.hpp](include/scope_guard.hpp).
+`SCOPE_GUARD_OPT_BUILD_EXAMPLES`, `SCOPE_GUARD_OPT_BUILD_TESTS`, and `SCOPE_GUARD_OPT_INSTALL` default to `ON` when scope_guard is the top-level project and `OFF` when it is a subproject.
+
+For manual integration, copy [scope_guard.hpp](include/scope_guard.hpp) into your project.
 
 For CMake integration, add this project as a subdirectory and link the interface target:
 

@@ -23,59 +23,83 @@
 #include <scope_guard.hpp>
 
 #include <iostream>
-#include <fstream>
 #include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace {
+
+void basic_scope_success() {
+  std::vector<std::string> persons;
+
+  {
+    SCOPE_SUCCESS{
+      persons.push_back("Ada");
+      std::cout << "published Ada\n";
+    };
+
+    std::cout << "validated Ada\n";
+  }
+
+  std::cout << "persons after success: " << persons.size() << '\n';
+}
+
+void named_scope_success() {
+  bool notified = false;
+
+  {
+    MAKE_SCOPE_SUCCESS(notify) {
+      notified = true;
+    };
+
+    notify.dismiss();
+  }
+
+  std::cout << "notification sent after dismiss: " << (notified ? "yes" : "no") << '\n';
+}
+
+void factory_scope_success() {
+  bool notified = false;
+
+  {
+    auto notify = scope_guard::make_scope_success([&]() {
+      notified = true;
+      std::cout << "factory success action\n";
+    });
+    (void)notify;
+  }
+
+  std::cout << "factory notification sent: " << (notified ? "yes" : "no") << '\n';
+}
+
+void with_scope_success() {
+  WITH_SCOPE_SUCCESS({ std::cout << "leave WITH_SCOPE_SUCCESS normally\n"; }) {
+    std::cout << "inside WITH_SCOPE_SUCCESS\n";
+  }
+}
+
+void exceptional_scope_success() {
+  bool notified = false;
+
+  try {
+    SCOPE_SUCCESS{
+      notified = true;
+    };
+
+    throw std::runtime_error{"operation failed"};
+  } catch (const std::exception& error) {
+    std::cout << error.what() << '\n';
+  }
+
+  std::cout << "notification sent after failure: " << (notified ? "yes" : "no") << '\n';
+}
+
+} // namespace
 
 int main() {
-  try {
-    std::fstream file;
-    file.open("test.txt", std::fstream::out | std::fstream::trunc);
-    SCOPE_SUCCESS{
-      file.close();
-      std::cout << "[1] file write success" << std::endl;
-    };
-
-    MAKE_SCOPE_SUCCESS(scope_success_1) {
-      std::cout << "[1] file write success" << std::endl;
-    };
-
-    auto scope_success_2 = scope_guard::make_scope_success([&]() {
-      std::cout << "[1] file write success" << std::endl;
-    });
-
-    WITH_SCOPE_SUCCESS({ std::cout << "[1] leave WITH_SCOPE_SUCCESS" << std::endl; }) {
-      std::cout << "[1] inside WITH_SCOPE_SUCCESS" << std::endl;
-    }
-
-    file << "example" << std::endl;
-    std::cout << "[1] write to file" << std::endl;
-    file.close();
-
-    scope_success_1.dismiss();
-
-    throw std::runtime_error{"error"};
-
-    scope_success_2.dismiss();
-  }
-  catch (...) {
-    std::cout << "[1] error" << std::endl;
-  }
-
-  std::fstream file;
-  SCOPE_SUCCESS{
-    file.close();
-    std::cout << "[2] file write success" << std::endl;
-  };
-  file.open("test.txt", std::fstream::out | std::fstream::trunc);
-  file << "[2] example" << std::endl;
-  std::cout << "[2] write to file" << std::endl;
-
-  return 0;
-
-  // prints "[1] inside WITH_SCOPE_SUCCESS".
-  // prints "[1] leave WITH_SCOPE_SUCCESS".
-  // prints "[1] write to file".
-  // prints "[1] error".
-  // prints "[2] write to file".
-  // prints "[2] file write success".
+  basic_scope_success();
+  named_scope_success();
+  factory_scope_success();
+  with_scope_success();
+  exceptional_scope_success();
 }

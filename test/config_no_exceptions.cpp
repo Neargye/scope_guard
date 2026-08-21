@@ -3,11 +3,14 @@
 
 #include <scope_guard.hpp>
 
-struct RvalueOnlyAction {
-  void operator() () && {}
-};
-
 int main() {
-  auto sg = scope_guard::make_scope_exit(RvalueOnlyAction{});
-  (void)sg;
+  int count = 0;
+
+  {
+    SCOPE_EXIT{ ++count; };
+    SCOPE_FAIL{ ++count; };
+    SCOPE_SUCCESS{ ++count; };
+  }
+
+  return count == 2 ? 0 : 1;
 }

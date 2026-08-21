@@ -65,12 +65,30 @@ struct ReturnsInt {
   }
 };
 
-static_assert(scope_guard::detail::is_noarg_returns_void_action<LvalueNoexceptRvalueThrow&>::value,
-              "scope_guard should validate the stored action as an lvalue.");
-static_assert(!scope_guard::detail::is_noarg_returns_void_action<RvalueOnly&>::value,
-              "scope_guard should reject actions that cannot be called as stored lvalues.");
-static_assert(!scope_guard::detail::is_noarg_returns_void_action<ReturnsInt&>::value,
-              "scope_guard should reject actions that do not return void.");
+struct ActionWithArgument {
+  void operator() (int) {}
+};
+
+template <typename T>
+class CanMakeScopeExit {
+  template <typename U>
+  static auto Test(int) -> decltype(scope_guard::make_scope_exit(std::declval<U>()), std::true_type{});
+
+  template <typename>
+  static std::false_type Test(...);
+
+ public:
+  static constexpr bool value = decltype(Test<T>(0))::value;
+};
+
+static_assert(CanMakeScopeExit<LvalueNoexceptRvalueThrow>::value,
+              "scope_guard should accept actions callable as stored lvalues.");
+static_assert(!CanMakeScopeExit<RvalueOnly>::value,
+              "scope_guard should reject rvalue-only actions through its public API.");
+static_assert(!CanMakeScopeExit<ReturnsInt>::value,
+              "scope_guard should reject non-void actions through its public API.");
+static_assert(!CanMakeScopeExit<ActionWithArgument>::value,
+              "scope_guard should reject actions with arguments through its public API.");
 static_assert(std::is_nothrow_destructible<decltype(scope_guard::make_scope_exit(LvalueNoexceptRvalueThrow{}))>::value,
               "scope_guard should compute noexcept from the stored lvalue action.");
 
@@ -265,6 +283,80 @@ TEST_CASE("with scope guard executes on scope leave") {
     }());
 
     REQUIRE(count == 0);
+  }
+}
+
+TEST_CASE("with scope guard control flow applies to its internal loop") {
+  SUBCASE("break leaves only the with scope") {
+    int iterations = 0;
+    int cleanups = 0;
+
+    for (int i = 0; i < 3; ++i) {
+      ++iterations;
+
+      WITH_SCOPE_EXIT({ ++cleanups; }) {
+        break;
+      }
+    }
+
+    REQUIRE(iterations == 3);
+    REQUIRE(cleanups == 3);
+  }
+
+  SUBCASE("continue leaves only the with scope") {
+    int fallthroughs = 0;
+    int cleanups = 0;
+
+    for (int i = 0; i < 3; ++i) {
+      WITH_SCOPE_EXIT({ ++cleanups; }) {
+        continue;
+      }
+
+      ++fallthroughs;
+    }
+
+    REQUIRE(fallthroughs == 3);
+    REQUIRE(cleanups == 3);
+  }
+}
+
+TEST_CASE("with scope guard composes as a statement") {
+  SUBCASE("nested scopes execute inside out") {
+    int sequence = 0;
+
+    WITH_SCOPE_EXIT({ sequence = sequence * 10 + 3; }) {
+      WITH_SCOPE_EXIT({ sequence = sequence * 10 + 2; }) {
+        sequence = sequence * 10 + 1;
+      }
+    }
+
+    REQUIRE(sequence == 123);
+  }
+
+  SUBCASE("if else selects the expected branch") {
+    int bodies = 0;
+    int cleanups = 0;
+    int alternatives = 0;
+    bool condition = true;
+
+    if (condition)
+      WITH_SCOPE_EXIT({ ++cleanups; }) {
+        ++bodies;
+      }
+    else
+      ++alternatives;
+
+    condition = false;
+    if (condition)
+      WITH_SCOPE_EXIT({ ++cleanups; }) {
+        ++bodies;
+      }
+    else
+      ++alternatives;
+
+    REQUIRE(bodies == 1);
+    REQUIRE(cleanups == 1);
+    REQUIRE(alternatives == 1);
   }
 }
 

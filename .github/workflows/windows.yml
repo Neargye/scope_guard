@@ -2,7 +2,8 @@ name: windows
 
 on: [push, pull_request]
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -16,13 +17,34 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-    - name: Configure
-      run: cmake -S . -B build -A x64
+      - name: Configure
+        run: cmake -S . -B build -A x64
 
-    - name: Build
-      run: cmake --build build --parallel --config ${{ matrix.config }}
+      - name: Build
+        run: cmake --build build --parallel --config ${{ matrix.config }}
 
-    - name: Test
-      run: ctest --test-dir build --output-on-failure -C ${{ matrix.config }}
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -C ${{ matrix.config }}
+
+  clangcl:
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Release, Debug]
+
+    name: "windows-2022 / ClangCL / x64 / ${{ matrix.config }}"
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        run: cmake -S . -B build -A x64 -T ClangCL
+
+      - name: Build
+        run: cmake --build build --parallel --config ${{ matrix.config }}
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -C ${{ matrix.config }}

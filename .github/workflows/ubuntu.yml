@@ -2,7 +2,8 @@ name: ubuntu
 
 on: [push, pull_request]
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -10,12 +11,12 @@ jobs:
       fail-fast: false
       matrix:
         compiler:
-        - { name: "GCC 12",   cc: "gcc-12",   cxx: "g++-12" }
-        - { name: "GCC 13",   cc: "gcc-13",   cxx: "g++-13" }
-        - { name: "GCC 14",   cc: "gcc-14",   cxx: "g++-14" }
-        - { name: "Clang 16", cc: "clang-16", cxx: "clang++-16" }
-        - { name: "Clang 17", cc: "clang-17", cxx: "clang++-17" }
-        - { name: "Clang 18", cc: "clang-18", cxx: "clang++-18" }
+          - { name: "GCC 12",   cc: "gcc-12",   cxx: "g++-12" }
+          - { name: "GCC 13",   cc: "gcc-13",   cxx: "g++-13" }
+          - { name: "GCC 14",   cc: "gcc-14",   cxx: "g++-14" }
+          - { name: "Clang 16", cc: "clang-16", cxx: "clang++-16" }
+          - { name: "Clang 17", cc: "clang-17", cxx: "clang++-17" }
+          - { name: "Clang 18", cc: "clang-18", cxx: "clang++-18" }
         build_type: [Release, Debug]
 
     name: "${{ matrix.compiler.name }} / ${{ matrix.build_type }}"
@@ -26,13 +27,13 @@ jobs:
       CXX: ${{ matrix.compiler.cxx }}
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-    - name: Configure
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
-    - name: Build
-      run: cmake --build build --parallel
+      - name: Build
+        run: cmake --build build --parallel
 
-    - name: Test
-      run: ctest --test-dir build --output-on-failure
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

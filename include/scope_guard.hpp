@@ -37,18 +37,17 @@
 #define SCOPE_GUARD_VERSION_PATCH 4
 
 #include <cstddef>
+#include <exception>
 #include <type_traits>
 #include <utility>
-#if (defined(_MSC_VER) && _MSC_VER >= 1900) || ((defined(__clang__) || defined(__GNUC__)) && __cplusplus >= 201700L)
-#include <exception>
-#endif
 
-// scope_guard throwable settings:
-// SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE requires nothrow constructible action.
-// SCOPE_GUARD_MAY_THROW_ACTION action may throw exceptions.
-// SCOPE_GUARD_NO_THROW_ACTION requires noexcept action.
-// SCOPE_GUARD_SUPPRESS_THROW_ACTION exceptions during action will be suppressed.
-// SCOPE_GUARD_CATCH_HANDLER exception handler statement. If SCOPE_GUARD_SUPPRESS_THROW_ACTION is not defined, it will do nothing.
+// scope_guard exception settings:
+// SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE requires the action to be nothrow move-constructible.
+// SCOPE_GUARD_MAY_THROW_ACTION allows exceptions from the action to propagate (default).
+// SCOPE_GUARD_NO_THROW_ACTION requires the action to be noexcept.
+// SCOPE_GUARD_SUPPRESS_THROW_ACTION suppresses exceptions thrown by the action.
+// SCOPE_GUARD_CATCH_HANDLER is a non-throwing statement run when an action exception is caught. It is ignored unless SCOPE_GUARD_SUPPRESS_THROW_ACTION is defined.
+// Configure these settings consistently in every translation unit before including this header.
 
 #if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
 #  define SCOPE_GUARD_MAY_THROW_ACTION
@@ -104,7 +103,7 @@ namespace detail {
 #  endif
 #endif
 
-#if (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
+#if !defined(_MSC_VER) && (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
 struct __cxa_eh_globals;
 extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
 inline int uncaught_exceptions() noexcept {
@@ -191,7 +190,7 @@ class scope_guard {
 #endif
 #if defined(SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE)
   static_assert(std::is_nothrow_move_constructible<A>::value,
-                "scope_guard requires nothrow constructible action.");
+                "scope_guard requires nothrow move-constructible action.");
 #endif
 
   P policy_;
@@ -347,22 +346,22 @@ using detail::make_scope_success;
 #define NEARGYE_SCOPE_GUARD_WITH_(g, i, j) for (bool i = true; i; i = false) for (auto j = g; i; i = false)
 #define NEARGYE_SCOPE_GUARD_WITH(g)        NEARGYE_SCOPE_GUARD_WITH_(g, NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_FLAG_, NEARGYE_SCOPE_GUARD_COUNTER), NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_OBJECT_, NEARGYE_SCOPE_GUARD_COUNTER))
 
-// SCOPE_EXIT executing action on scope exit.
+// SCOPE_EXIT executes the action on scope exit.
 #define MAKE_SCOPE_EXIT(name)  auto name = NEARGYE_SCOPE_GUARD_MAKE_SCOPE_EXIT
 #define SCOPE_EXIT             NEARGYE_SCOPE_GUARD_MAYBE_UNUSED const MAKE_SCOPE_EXIT(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_SCOPE_EXIT_, NEARGYE_SCOPE_GUARD_COUNTER))
 #define WITH_SCOPE_EXIT(guard) NEARGYE_SCOPE_GUARD_WITH(NEARGYE_SCOPE_GUARD_MAKE_SCOPE_EXIT{ guard })
 
-// SCOPE_FAIL executing action on scope exit when an exception has been thrown before scope exit.
+// SCOPE_FAIL executes the action when the scope is left during exception unwinding.
 #define MAKE_SCOPE_FAIL(name)  auto name = NEARGYE_SCOPE_GUARD_MAKE_SCOPE_FAIL
 #define SCOPE_FAIL             NEARGYE_SCOPE_GUARD_MAYBE_UNUSED const MAKE_SCOPE_FAIL(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_SCOPE_FAIL_, NEARGYE_SCOPE_GUARD_COUNTER))
 #define WITH_SCOPE_FAIL(guard) NEARGYE_SCOPE_GUARD_WITH(NEARGYE_SCOPE_GUARD_MAKE_SCOPE_FAIL{ guard })
 
-// SCOPE_SUCCESS executing action on scope exit when no exceptions have been thrown before scope exit.
+// SCOPE_SUCCESS executes the action when the scope is not left during exception unwinding.
 #define MAKE_SCOPE_SUCCESS(name)  auto name = NEARGYE_SCOPE_GUARD_MAKE_SCOPE_SUCCESS
 #define SCOPE_SUCCESS             NEARGYE_SCOPE_GUARD_MAYBE_UNUSED const MAKE_SCOPE_SUCCESS(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_SCOPE_SUCCESS_, NEARGYE_SCOPE_GUARD_COUNTER))
 #define WITH_SCOPE_SUCCESS(guard) NEARGYE_SCOPE_GUARD_WITH(NEARGYE_SCOPE_GUARD_MAKE_SCOPE_SUCCESS{ guard })
 
-// DEFER executing action on scope exit.
+// DEFER executes the action on scope exit.
 #define MAKE_DEFER(name)  MAKE_SCOPE_EXIT(name)
 #define DEFER             SCOPE_EXIT
 #define WITH_DEFER(guard) WITH_SCOPE_EXIT(guard)

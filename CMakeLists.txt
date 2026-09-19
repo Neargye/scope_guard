@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.15)
 
-project(scope_guard VERSION "0.9.4" LANGUAGES CXX)
+project(scope_guard VERSION "0.9.5" LANGUAGES CXX)
 
 include(GNUInstallDirs)
 

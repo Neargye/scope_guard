@@ -59,6 +59,22 @@
 #  define SCOPE_GUARD_CATCH_HANDLER /* Suppress exception.*/
 #endif
 
+#if !defined(_MSC_VER) && (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201703L
+#  include <cxxabi.h>
+#  if !defined(__FreeBSD__) && (defined(_LIBCPPABI_VERSION) || defined(__OpenBSD__) || \
+      (defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__) < 407) || \
+      (defined(__QNXNTO__) && !defined(__GLIBCXX__) && !defined(__GLIBCPP__)))
+namespace __cxxabiv1 {
+struct __cxa_eh_globals;
+#    if defined(__OpenBSD__)
+extern "C" __cxa_eh_globals* __cxa_get_globals();
+#    else
+extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
+#    endif
+}
+#  endif
+#endif
+
 namespace scope_guard {
 
 namespace detail {
@@ -103,11 +119,9 @@ namespace detail {
 #  endif
 #endif
 
-#if !defined(_MSC_VER) && (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201700L
-struct __cxa_eh_globals;
-extern "C" __cxa_eh_globals* __cxa_get_globals() noexcept;
+#if !defined(_MSC_VER) && (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201703L
 inline int uncaught_exceptions() noexcept {
-  return static_cast<int>(*(reinterpret_cast<unsigned int*>(static_cast<char*>(static_cast<void*>(__cxa_get_globals())) + sizeof(void*))));
+  return static_cast<int>(*reinterpret_cast<const unsigned int*>(reinterpret_cast<const char*>(::__cxxabiv1::__cxa_get_globals()) + sizeof(void*)));
 }
 #else
 inline int uncaught_exceptions() noexcept {

@@ -26,6 +26,7 @@
 #define SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE
 #include <scope_guard.hpp>
 
+#include <initializer_list>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -67,6 +68,20 @@ struct ReturnsInt {
 
 struct ActionWithArgument {
   void operator() (int) {}
+};
+
+struct InitializerListAction {
+  explicit InitializerListAction(int& executions) noexcept : executions_{&executions} {}
+  InitializerListAction(InitializerListAction&&) noexcept = default;
+  InitializerListAction(std::initializer_list<InitializerListAction>) {
+    throw std::runtime_error{"initializer-list constructor selected instead of move"};
+  }
+
+  void operator() () & noexcept {
+    ++*executions_;
+  }
+
+  int* executions_;
 };
 
 template <typename T>
@@ -199,6 +214,96 @@ TEST_CASE("default action exceptions propagate") {
   REQUIRE_THROWS_AS([&]() {
     SCOPE_EXIT{ throw std::runtime_error{"cleanup failure"}; };
   }(), std::runtime_error);
+}
+
+TEST_CASE("moving dismissed guards does not reactivate them") {
+  int count = 0;
+
+  REQUIRE_THROWS_AS([&]() {
+    auto on_exit = scope_guard::make_scope_exit([&]() { ++count; });
+    auto on_fail = scope_guard::make_scope_fail([&]() { ++count; });
+    on_exit.dismiss();
+    on_fail.dismiss();
+    auto moved_exit = std::move(on_exit);
+    auto moved_fail = std::move(on_fail);
+    throw std::runtime_error{"body failure"};
+  }(), std::runtime_error);
+
+  {
+    auto on_success = scope_guard::make_scope_success([&]() { ++count; });
+    on_success.dismiss();
+    auto moved_success = std::move(on_success);
+  }
+
+  REQUIRE(count == 0);
+}
+
+TEST_CASE("moving guards during unwinding preserves their exception baseline") {
+  int failures = 0;
+  int successes = 0;
+
+  REQUIRE_THROWS_AS([&]() {
+    auto on_fail = scope_guard::make_scope_fail([&]() { ++failures; });
+    auto on_success = scope_guard::make_scope_success([&]() { ++successes; });
+    SCOPE_EXIT{
+      auto moved_fail = std::move(on_fail);
+      auto moved_success = std::move(on_success);
+    };
+    throw std::runtime_error{"body failure"};
+  }(), std::runtime_error);
+
+  REQUIRE(failures == 1);
+  REQUIRE(successes == 0);
+}
+
+TEST_CASE("guards created during unwinding distinguish a nested exception") {
+  int outer_failures = 0;
+  int outer_successes = 0;
+  int inner_failures = 0;
+  int inner_successes = 0;
+
+  REQUIRE_THROWS_AS([&]() {
+    SCOPE_EXIT{
+      SCOPE_FAIL{ ++outer_failures; };
+      SCOPE_SUCCESS{ ++outer_successes; };
+      try {
+        SCOPE_FAIL{ ++inner_failures; };
+        SCOPE_SUCCESS{ ++inner_successes; };
+        throw std::logic_error{"nested failure"};
+      } catch (const std::logic_error&) {
+      }
+    };
+    throw std::runtime_error{"body failure"};
+  }(), std::runtime_error);
+
+  REQUIRE(outer_failures == 0);
+  REQUIRE(outer_successes == 1);
+  REQUIRE(inner_failures == 1);
+  REQUIRE(inner_successes == 0);
+}
+
+TEST_CASE("guard construction and moves use the action move constructor") {
+  int executions = 0;
+
+  SUBCASE("scope_exit") {
+    auto source = scope_guard::make_scope_exit(InitializerListAction(executions));
+    auto destination = std::move(source);
+  }
+
+  SUBCASE("scope_fail") {
+    REQUIRE_THROWS_AS([&]() {
+      auto source = scope_guard::make_scope_fail(InitializerListAction(executions));
+      auto destination = std::move(source);
+      throw std::runtime_error{"body failure"};
+    }(), std::runtime_error);
+  }
+
+  SUBCASE("scope_success") {
+    auto source = scope_guard::make_scope_success(InitializerListAction(executions));
+    auto destination = std::move(source);
+  }
+
+  REQUIRE(executions == 1);
 }
 
 TEST_CASE("with scope guard accepts commas in action blocks") {

@@ -95,6 +95,10 @@ add_config_test(${PROJECT_NAME}-throwing-move-action.t SCOPE_GUARD_TEST_THROWING
 add_runtime_failure_test(${PROJECT_NAME}-throwing-scope-fail-action.t SCOPE_GUARD_TEST_THROW_DURING_UNWINDING "${CXX11_STANDARD}" "scope_fail action terminated")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT SCOPE_GUARD_MSVC_FRONTEND)
+    add_config_test(${PROJECT_NAME}-cxxabi-first.t SCOPE_GUARD_TEST_CXXABI "${CXX11_STANDARD}")
+    target_compile_definitions(${PROJECT_NAME}-cxxabi-first.t PRIVATE SCOPE_GUARD_TEST_CXXABI_FIRST)
+    add_config_test(${PROJECT_NAME}-cxxabi-last.t SCOPE_GUARD_TEST_CXXABI "${CXX11_STANDARD}")
+
     add_program_test(${PROJECT_NAME}-no-exceptions.t config_no_exceptions.cpp "${CXX11_STANDARD}")
     target_compile_options(${PROJECT_NAME}-no-exceptions.t PRIVATE -fno-exceptions)
 

@@ -207,7 +207,7 @@ class scope_guard {
 
   scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{false},
-        action_{NEARGYE_SCOPE_GUARD_MOV(other.action_)} {
+        action_(NEARGYE_SCOPE_GUARD_MOV(other.action_)) {
     policy_ = NEARGYE_SCOPE_GUARD_MOV(other.policy_);
     other.policy_.dismiss();
   }
@@ -217,7 +217,7 @@ class scope_guard {
 
   explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{true},
-        action_{NEARGYE_SCOPE_GUARD_MOV(action)} {}
+        action_(NEARGYE_SCOPE_GUARD_MOV(action)) {}
 
   void dismiss() noexcept {
     policy_.dismiss();

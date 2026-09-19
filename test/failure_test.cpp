@@ -63,15 +63,28 @@ int main() {
 #  include <exception>
 #  include <stdexcept>
 
+bool scope_fail_action_entered = false;
+
 int main() {
   std::set_terminate([]() {
+    if (!scope_fail_action_entered) {
+      std::_Exit(43);
+    }
     std::fputs("scope_fail action terminated\n", stderr);
     std::fflush(stderr);
     std::_Exit(42);
   });
 
-  SCOPE_FAIL{ throw std::runtime_error{"cleanup failure"}; };
-  throw std::runtime_error{"body failure"};
+  try {
+    SCOPE_FAIL{
+      scope_fail_action_entered = true;
+      throw std::runtime_error{"cleanup failure"};
+    };
+    throw std::runtime_error{"body failure"};
+  } catch (const std::runtime_error&) {
+    // Reaching the handler means the action did not terminate during unwinding.
+    return 0;
+  }
 }
 
 #endif

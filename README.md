@@ -7,9 +7,9 @@ A scope guard runs a deferred action when its scope is left:
 
 * `scope_exit` - executes the action on scope exit.
 
-* `scope_fail` - executes the action if the scope is left during exception unwinding.
+* `scope_fail` - executes the action if an exception leaves the scope.
 
-* `scope_success` - executes the action if the scope is not left during exception unwinding.
+* `scope_success` - executes the action if the scope exits normally.
 
 Normal C++ control flow, including `return`, `break`, `continue`, and exceptions, still destroys the guard. This makes scope guards useful for cleanup and rollback across different exit paths.
 
@@ -19,7 +19,7 @@ Normal C++ control flow, including `return`, `break`, `continue`, and exceptions
 * Header-only
 * Dependency-free
 * Thin callback wrapping, no added std::function or virtual table penalties
-* No implicitly ignored return, callbacks must return void
+* No silently ignored return values; callbacks must return `void`
 * Defer or Scope Guard syntax and "With" syntax
 
 ## [Examples](example)
@@ -27,6 +27,7 @@ Normal C++ control flow, including `return`, `break`, `continue`, and exceptions
 * [Scope Guard on exit and defer](example/scope_exit_example.cpp)
 
   ```cpp
+  #include <fstream>
   #include <scope_guard.hpp>
 
   std::fstream file("test.txt");
@@ -36,7 +37,7 @@ Normal C++ control flow, including `return`, `break`, `continue`, and exceptions
 * [Scope Guard on fail](example/scope_fail_example.cpp)
 
   ```cpp
-  persons.push_back(person); // Add the person to the database.
+  persons.push_back(person);
   SCOPE_FAIL{ persons.pop_back(); }; // Roll back if a later operation throws.
   ```
 
@@ -51,7 +52,7 @@ Normal C++ control flow, including `return`, `break`, `continue`, and exceptions
 * Custom Scope Guard
 
   ```cpp
-  persons.push_back(person); // Add the person to the database.
+  persons.push_back(person);
 
   MAKE_SCOPE_EXIT(rollback) {
     persons.pop_back();
@@ -61,7 +62,7 @@ Normal C++ control flow, including `return`, `break`, `continue`, and exceptions
   ```
 
   ```cpp
-  persons.push_back(person); // Add the person to the database.
+  persons.push_back(person);
 
   auto rollback = scope_guard::make_scope_exit([&]() { persons.pop_back(); });
   // ...
@@ -112,9 +113,9 @@ Normal C++ control flow, including `return`, `break`, `continue`, and exceptions
 
 ### Interface of scope_guard
 
-Guards created by factories and macros provide `dismiss()`, which disables the action.
+Named guards provide `dismiss()`, which disables the action.
 
-Guards are move-only. Moving transfers responsibility for executing the action.
+Guards can be move-constructed, but cannot be copied or assigned. Moving transfers responsibility for executing the action.
 
 #### Exception settings
 
@@ -122,11 +123,11 @@ Guards are move-only. Moving transfers responsibility for executing the action.
 
 * `SCOPE_GUARD_MAY_THROW_ACTION` - allows action exceptions to propagate.
 
-* `SCOPE_GUARD_NO_THROW_ACTION` - requires a `noexcept` action.
+* `SCOPE_GUARD_NO_THROW_ACTION` - requires `noexcept` callables and declares macro-generated actions `noexcept`.
 
 * `SCOPE_GUARD_SUPPRESS_THROW_ACTION` - suppresses exceptions thrown by the action.
 
-* By default, `SCOPE_GUARD_MAY_THROW_ACTION` is used. Action exceptions propagate normally. If an action throws during exception unwinding, the program terminates. Use `SCOPE_GUARD_NO_THROW_ACTION` or `SCOPE_GUARD_SUPPRESS_THROW_ACTION` for cleanup paths that must not throw.
+* By default, `SCOPE_GUARD_MAY_THROW_ACTION` is used. Action exceptions propagate normally. If an exception escapes an action during stack unwinding, the program terminates. Use `SCOPE_GUARD_NO_THROW_ACTION` or `SCOPE_GUARD_SUPPRESS_THROW_ACTION` for cleanup paths that must not throw.
 
 * `SCOPE_GUARD_CATCH_HANDLER` - a non-throwing statement run when an action exception is caught. It is ignored unless `SCOPE_GUARD_SUPPRESS_THROW_ACTION` is defined.
 

@@ -201,6 +201,35 @@ TEST_CASE("default action exceptions propagate") {
   }(), std::runtime_error);
 }
 
+TEST_CASE("with scope guard accepts commas in action blocks") {
+  std::pair<int, int> result{0, 0};
+
+  SUBCASE("scope_exit") {
+    WITH_SCOPE_EXIT({
+      const std::pair<int, int> value{1, 2};
+      result = value;
+    }) {}
+  }
+
+  SUBCASE("scope_fail") {
+    REQUIRE_THROWS_AS([&]() {
+      WITH_SCOPE_FAIL({ result = {1, 2}; }) {
+        throw std::runtime_error{"body failure"};
+      }
+    }(), std::runtime_error);
+  }
+
+  SUBCASE("scope_success") {
+    WITH_SCOPE_SUCCESS({ result = {1, 2}; }) {}
+  }
+
+  SUBCASE("defer") {
+    WITH_DEFER({ result = {1, 2}; }) {}
+  }
+
+  REQUIRE(result == std::make_pair(1, 2));
+}
+
 TEST_CASE("with scope guard executes on scope leave") {
   SUBCASE("scope_exit normal leave") {
     int count = 0;

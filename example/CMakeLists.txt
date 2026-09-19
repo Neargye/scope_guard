@@ -1,6 +1,6 @@
 ﻿include(CheckCXXCompilerFlag)
 
-if(SCOPE_GUARD_MSVC_FRONTEND)
+if(MSVC)
     set(OPTIONS /W4 /WX)
     check_cxx_compiler_flag(/permissive- HAS_PERMISSIVE_FLAG)
     if(HAS_PERMISSIVE_FLAG)

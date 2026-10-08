@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 // CMake builds this source once for each expected compile-time or runtime failure.
-#if (defined(SCOPE_GUARD_TEST_MULTIPLE_THROW_POLICIES) + defined(SCOPE_GUARD_TEST_REJECT_THROWING_ACTION) + defined(SCOPE_GUARD_TEST_REJECT_THROWING_MOVE) + defined(SCOPE_GUARD_TEST_REJECT_LVALUE_ACTION) + defined(SCOPE_GUARD_TEST_THROW_DURING_UNWINDING)) != 1
+#if (defined(SCOPE_GUARD_TEST_MULTIPLE_THROW_POLICIES) + defined(SCOPE_GUARD_TEST_REJECT_THROWING_ACTION) + defined(SCOPE_GUARD_TEST_REJECT_THROWING_MOVE) + defined(SCOPE_GUARD_TEST_REJECT_LVALUE_ACTION) + defined(SCOPE_GUARD_TEST_REJECT_ARRAY_NEW) + defined(SCOPE_GUARD_TEST_THROW_DURING_UNWINDING)) != 1
 #  error "Exactly one scope_guard failure test must be selected."
 #endif
 
@@ -54,6 +54,17 @@ int main() {
   Action action;
   auto guard = scope_guard::make_scope_exit(action);
   (void)guard;
+}
+
+#elif defined(SCOPE_GUARD_TEST_REJECT_ARRAY_NEW)
+
+#  include <utility>
+
+int main() {
+  auto guard = scope_guard::make_scope_exit([]() {});
+  using guard_type = decltype(guard);
+  guard_type* guards = new guard_type[1]{std::move(guard)};
+  delete[] guards;
 }
 
 #elif defined(SCOPE_GUARD_TEST_THROW_DURING_UNWINDING)

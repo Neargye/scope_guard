@@ -223,6 +223,8 @@ class scope_guard {
 
   void* operator new(std::size_t) = delete;
   void operator delete(void*) = delete;
+  void* operator new[](std::size_t) = delete;
+  void operator delete[](void*) = delete;
 
  public:
   scope_guard() = delete;

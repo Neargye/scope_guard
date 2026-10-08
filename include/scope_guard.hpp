@@ -79,7 +79,8 @@ namespace scope_guard {
 
 namespace detail {
 
-#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+// Clang defines __EXCEPTIONS without __cpp_exceptions under -fexceptions -fno-cxx-exceptions, where C++ try is ill-formed.
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || (defined(__EXCEPTIONS) && !defined(__clang__)) || defined(_CPPUNWIND))
 #  define NEARGYE_SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define NEARGYE_SCOPE_GUARD_TRY           try {
 #  define NEARGYE_SCOPE_GUARD_CATCH         } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
@@ -94,6 +95,7 @@ namespace detail {
 
 // NEARGYE_SCOPE_GUARD_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
 #if !defined(NEARGYE_SCOPE_GUARD_NODISCARD)
+#  define NEARGYE_SCOPE_GUARD_UNDEF_NODISCARD
 #  if defined(__clang__)
 #    if (__clang_major__ * 10 + __clang_minor__) >= 39 && __cplusplus >= 201703L
 #      define NEARGYE_SCOPE_GUARD_NODISCARD [[nodiscard]]
@@ -299,7 +301,10 @@ scope_success<F> operator<<(scope_success_tag, F&& action) noexcept(noexcept(sco
 #undef NEARGYE_SCOPE_GUARD_NOEXCEPT
 #undef NEARGYE_SCOPE_GUARD_TRY
 #undef NEARGYE_SCOPE_GUARD_CATCH
-#undef NEARGYE_SCOPE_GUARD_NODISCARD
+#if defined(NEARGYE_SCOPE_GUARD_UNDEF_NODISCARD)
+#  undef NEARGYE_SCOPE_GUARD_NODISCARD
+#  undef NEARGYE_SCOPE_GUARD_UNDEF_NODISCARD
+#endif
 
 } // namespace scope_guard::detail
 

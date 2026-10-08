@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 // CMake builds this source once for each isolated header configuration.
-#if (defined(SCOPE_GUARD_TEST_NO_THROW_ACTION) + defined(SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION) + defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION) + defined(SCOPE_GUARD_TEST_CXXABI)) != 1
+#if (defined(SCOPE_GUARD_TEST_NO_THROW_ACTION) + defined(SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION) + defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION) + defined(SCOPE_GUARD_TEST_CXXABI) + defined(SCOPE_GUARD_TEST_USER_NODISCARD)) != 1
 #  error "Exactly one scope_guard configuration test must be selected."
 #endif
 
@@ -23,9 +23,17 @@
 int scope_guard_suppressed_exceptions = 0;
 #  define SCOPE_GUARD_SUPPRESS_THROW_ACTION
 #  define SCOPE_GUARD_CATCH_HANDLER ++scope_guard_suppressed_exceptions;
+#elif defined(SCOPE_GUARD_TEST_USER_NODISCARD)
+#  define NEARGYE_SCOPE_GUARD_NODISCARD
 #endif
 
 #include <scope_guard.hpp>
+
+#if defined(SCOPE_GUARD_TEST_USER_NODISCARD) && !defined(NEARGYE_SCOPE_GUARD_NODISCARD)
+#  error "scope_guard.hpp must keep a user-provided NEARGYE_SCOPE_GUARD_NODISCARD."
+#elif !defined(SCOPE_GUARD_TEST_USER_NODISCARD) && defined(NEARGYE_SCOPE_GUARD_NODISCARD)
+#  error "scope_guard.hpp must not leak its own NEARGYE_SCOPE_GUARD_NODISCARD."
+#endif
 
 #if defined(SCOPE_GUARD_TEST_CXXABI) && !defined(SCOPE_GUARD_TEST_CXXABI_FIRST)
 #  include <cxxabi.h>
@@ -190,6 +198,19 @@ TEST_CASE("cxxabi header compatibility preserves exception counting") {
 
   REQUIRE(failures == 1);
   REQUIRE(successes == 0);
+}
+
+#elif defined(SCOPE_GUARD_TEST_USER_NODISCARD)
+
+TEST_CASE("a user-provided NEARGYE_SCOPE_GUARD_NODISCARD is kept") {
+  int count = 0;
+
+  {
+    auto guard = scope_guard::make_scope_exit([&]() { ++count; });
+    (void)guard;
+  }
+
+  REQUIRE(count == 1);
 }
 
 #endif

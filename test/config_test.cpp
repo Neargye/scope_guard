@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 // CMake builds this source once for each isolated header configuration.
-#if (defined(SCOPE_GUARD_TEST_NO_THROW_ACTION) + defined(SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION) + defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION) + defined(SCOPE_GUARD_TEST_CXXABI)) != 1
+#if (defined(SCOPE_GUARD_TEST_NO_THROW_ACTION) + defined(SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION) + defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION) + defined(SCOPE_GUARD_TEST_CXXABI) + defined(SCOPE_GUARD_TEST_USER_NODISCARD)) != 1
 #  error "Exactly one scope_guard configuration test must be selected."
 #endif
 
@@ -23,6 +23,8 @@
 int scope_guard_suppressed_exceptions = 0;
 #  define SCOPE_GUARD_SUPPRESS_THROW_ACTION
 #  define SCOPE_GUARD_CATCH_HANDLER ++scope_guard_suppressed_exceptions;
+#elif defined(SCOPE_GUARD_TEST_USER_NODISCARD)
+#  define NEARGYE_SCOPE_GUARD_NODISCARD
 #endif
 
 #include <scope_guard.hpp>
@@ -190,6 +192,23 @@ TEST_CASE("cxxabi header compatibility preserves exception counting") {
 
   REQUIRE(failures == 1);
   REQUIRE(successes == 0);
+}
+
+#elif defined(SCOPE_GUARD_TEST_USER_NODISCARD)
+
+#  if defined(NEARGYE_SCOPE_GUARD_NODISCARD)
+constexpr bool user_nodiscard_defined = true;
+#  else
+constexpr bool user_nodiscard_defined = false;
+#  endif
+
+TEST_CASE("a user NEARGYE_SCOPE_GUARD_NODISCARD is used and kept") {
+  int count = 0;
+
+  scope_guard::make_scope_exit([&]() { ++count; });
+
+  REQUIRE(count == 1);
+  REQUIRE(user_nodiscard_defined);
 }
 
 #endif

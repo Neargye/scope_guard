@@ -92,6 +92,7 @@ endif()
 add_config_test(${PROJECT_NAME}-no-throw-action.t SCOPE_GUARD_TEST_NO_THROW_ACTION "${CXX11_STANDARD}")
 add_config_test(${PROJECT_NAME}-suppress-throw-action.t SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION "${CXX11_STANDARD}")
 add_config_test(${PROJECT_NAME}-throwing-move-action.t SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION "${CXX11_STANDARD}")
+add_config_test(${PROJECT_NAME}-user-nodiscard.t SCOPE_GUARD_TEST_USER_NODISCARD "${CXX11_STANDARD}")
 add_runtime_failure_test(${PROJECT_NAME}-throwing-scope-fail-action.t SCOPE_GUARD_TEST_THROW_DURING_UNWINDING "${CXX11_STANDARD}" "scope_fail action terminated")
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)

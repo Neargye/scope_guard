@@ -106,6 +106,7 @@ is in Decisions D1–D19.
 - Q3: Should the factories become SFINAE-friendly for lvalues (H6)? The cost is the current `static_assert` message pinned by `compile-fail-lvalue-action.t`. The H7 diagnostic improvements depend on this choice.
 - Q4: Keep `COMPATIBILITY AnyNewerVersion` for a 0.x package (H20), or switch to `SameMinorVersion` (and to `SameMajorVersion` from 1.0)?
 - Q5: Accept `[proposal] delete array new for scope guard` (H12)?
+- Q6: For MSVC in C++14 mode, should `NEARGYE_SCOPE_GUARD_NODISCARD` use `[[nodiscard]]` (H10), and should `SCOPE_EXIT` keep `__pragma(warning(suppress : 4100 4101 4189))`, which also hides C4189 inside the user's action (H11)?
 
 ## Verification on HEAD (container)
 
@@ -158,6 +159,9 @@ Source: no earlier review branch found (git log --all -- review-report.md is emp
 | D17 | H23 / O8 (compile time with thousands of guards in one function) left as is | Unrealistic usage; most of the growth is the compilers' EH cleanup handling | evidence verdict H23, O8 |
 | D18 | `[proposal] separate guards by action setting` does not encode `SCOPE_GUARD_CATCH_HANDLER` or `SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE`; README "configure consistently" kept | The handler is an arbitrary statement (cannot be named in a namespace); NO_THROW_CONSTRUCTIBLE only adds a `static_assert` (no code difference). Consistent configuration is still the documented rule | step 3 report, H4 |
 | D19 | O2 (`(void)` does not silence GCC `warn_unused_result` in C++11/14), O4 (Clang `-Weverything` notes in test sources), O6 (`-Wpadded`, `-Wunsafe-buffer-usage` in the header), O7 (libstdc++ 13 `std::experimental::scope_exit` release+move) left as is | GCC attribute semantics / style notes outside the project's warning set / expected for the design / standard-library defect, not the project | evidence O2, O4, O6, O7 |
+| D20 | H10 (MSVC C++14: a discarded guard is not diagnosed) deferred | CONFIRMED by review CI on msvc-x64/x86; low impact (MSVC pre-C++17 only). The fix (e.g. `[[nodiscard]]` in MSVC C++14 mode, which may warn C5051) needs the owner's choice and an MSVC run | Review CI, Q6 |
+| D21 | H11 (MSVC C++14: the `warning(suppress)` pragma hides C4189 on the first line of the action) deferred | CONFIRMED by review CI; low impact (diagnostics only). Dropping the pragma brings back C4189 on the guard variable itself, so the trade-off is the owner's | Review CI, Q6 |
+| D22 | D1, D2, D7 resolved by review CI: H1 REJECTED (offset correct on libc++abi, 32-bit, GCC 14), H2 stays FORMAL (R2 held), R6/R7 closed | No change needed | Review CI run 37826600510 |
 
 ## Hypothesis verdicts
 
@@ -299,3 +303,37 @@ MSVC probes cannot run here: R6's body builds and runs `ok` with g++/clang++ c++
 - **Step 9 (hypotheses.md):** present when T1 finished. All its container probes use g++-13/clang++-18 with standard or probe-local flags
   (for example H3's `-fexceptions -fno-cxx-exceptions`), so they need no extra T2 configuration. Hypotheses were not verified here (step 2b does that).
 - **Existing CI after push:** only the orchestrator pushes, so it was not observed in this step.
+
+## Review CI
+
+Run: https://github.com/Neargye/scope_guard/actions/runs/37826600510 (head `ee19a28`, ~2 minutes, 7 jobs, all green).
+Existing CI on the same head: ubuntu (GCC 12/13/14, Clang 16/17/18 × Release/Debug), macos-15 (Release/Debug),
+windows (MSVC x64 2022/2025, ClangCL × Release/Debug) — all success, including this branch's new tests
+(`user-nodiscard`, `mixed-action-settings` with `/Ob0` on MSVC, `compile-fail-array-new` with C2280, `no-cxx-exceptions-suppress-throw-action` on Clang/AppleClang).
+
+| job | project build + ctest | probes | predictions |
+|---|---|---|---|
+| macos-appleclang (macos-15, AppleClang, libc++abi) | pass | H1, R1 (c++11/14), R2 (c++11/14/17) | 7/7 held |
+| clang-libcxx (clang++-20, libc++, ASan+UBSan) | pass | H1, R1, R2 | 7/7 held |
+| gcc-latest (g++-14) | pass | H1, R1, R2 | 7/7 held |
+| gcc-m32 (g++ -m32) | pass | H1, R1, R2 | 7/7 held |
+| msvc-x64 | pass | H10, H11, R6 | 8/8 held |
+| msvc-x86 (Win32) | pass | H10, H11, R6 | 8/8 held |
+| clangcl | pass | R7 (c++14/17/20) | 3/3 held |
+
+Packages installed on runners: clang-20, libc++-20-dev, libc++abi-20-dev, libclang-rt-20-dev (apt.llvm.org); g++-multilib (Ubuntu archive).
+
+Verdicts (update the step 2b table):
+- **H1 → REJECTED.** The fixed offset `sizeof(void*)` reads the right `__cxa_eh_globals` field on libc++abi (macOS arm64, Linux libc++abi 20 under ASan+UBSan), libstdc++ 14 and 32-bit libstdc++: H1/R1 run `ok` on c++11/c++14 in all 4 jobs (nested counts up to 4, fail/success at every depth, agreement with `std::uncaught_exception()`). Profile risk **R1 closed**.
+- **H2 stays FORMAL; R2 closed.** `<cxxabi.h>` before and after the header builds and runs on AppleClang/libc++abi, Clang 20/libc++abi, GCC 14 and GCC -m32 (c++11/14/17).
+- **H10 → CONFIRMED (MSVC x64 and x86).** With `/std:c++14` a discarded `make_scope_exit(...)` result compiles cleanly at `/W4 /WX` (`_Check_return_` branch), so the guard runs its action immediately; with c++17/c++20 the control fails with C4834 as expected.
+- **H11 → CONFIRMED (MSVC x64 and x86).** With `/std:c++14` the `__pragma(warning(suppress : 4100 4101 4189))` emitted by `SCOPE_EXIT` hides C4189 for an unused local on the first line of the user's action; with c++17 the same code fails with C4189.
+- **R6 closed:** all public macros build at `/W4 /WX /permissive-` and SCOPE_FAIL/SCOPE_SUCCESS behave on MSVC x64 and x86, c++14/17/20 (MSVC reports `__cplusplus=199711` in all modes; the header uses `_MSVC_LANG` there, so this is fine).
+- **R7 closed:** clang-cl takes the `__clang__` branches with `__cplusplus` 201402/201703/202002 and works at `/W4 /WX` on c++14/17/20.
+
+Updated counts: CONFIRMED 18, REJECTED 1, FORMAL 3, UNCLEAR 1 (H18, no platform).
+H10 and H11 are low impact (MSVC C++14 only, diagnostics only) and the fix choice needs the owner (D20, D21, Q6), so no code change was made.
+
+Not verified anywhere: H18 (Emscripten / non-GNU, non-MSVC C++11 compilers); Clang ASan with libstdc++ (the clang-libcxx job covers Clang ASan with libc++).
+
+Permanent CI extension (proposal, not applied): one sanitizer job (Clang + libc++ + ASan+UBSan, as `clang-libcxx` above) and one 32-bit job (`gcc-m32` or MSVC Win32). Both ran green here in about 1 minute each.

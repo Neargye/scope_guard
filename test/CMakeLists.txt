@@ -120,6 +120,7 @@ else()
     set(LVALUE_ACTION_DIAGNOSTIC "make_scope_exit requires an rvalue action")
 endif()
 add_compile_failure_test(${PROJECT_NAME}-compile-fail-lvalue-action.t SCOPE_GUARD_TEST_REJECT_LVALUE_ACTION "${CXX11_STANDARD}" "${LVALUE_ACTION_DIAGNOSTIC}")
+add_compile_failure_test(${PROJECT_NAME}-compile-fail-function-action.t SCOPE_GUARD_TEST_REJECT_FUNCTION_ACTION "${CXX11_STANDARD}" "for a function, pass its address")
 
 if(IS_TOPLEVEL_PROJECT)
     add_subdirectory(integration)

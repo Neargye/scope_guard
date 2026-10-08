@@ -251,7 +251,7 @@ template <typename F>
 using scope_exit = scope_guard<F, on_exit_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
-NEARGYE_SCOPE_GUARD_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+NEARGYE_SCOPE_GUARD_NODISCARD scope_exit<F> make_scope_exit(F&& action) noexcept(std::is_nothrow_constructible<scope_exit<F>, F>::value && std::is_nothrow_destructible<scope_exit<F>>::value) {
   static_assert(std::is_rvalue_reference<F&&>::value, "make_scope_exit requires an rvalue action; use std::move or pass a temporary; for a function, pass its address.");
   return scope_exit<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
@@ -260,7 +260,7 @@ template <typename F>
 using scope_fail = scope_guard<F, on_fail_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
-NEARGYE_SCOPE_GUARD_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+NEARGYE_SCOPE_GUARD_NODISCARD scope_fail<F> make_scope_fail(F&& action) noexcept(std::is_nothrow_constructible<scope_fail<F>, F>::value && std::is_nothrow_destructible<scope_fail<F>>::value) {
   static_assert(std::is_rvalue_reference<F&&>::value, "make_scope_fail requires an rvalue action; use std::move or pass a temporary; for a function, pass its address.");
   return scope_fail<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
@@ -269,7 +269,7 @@ template <typename F>
 using scope_success = scope_guard<F, on_success_policy>;
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
-NEARGYE_SCOPE_GUARD_NODISCARD scope_success<F> make_scope_success(F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+NEARGYE_SCOPE_GUARD_NODISCARD scope_success<F> make_scope_success(F&& action) noexcept(std::is_nothrow_constructible<scope_success<F>, F>::value && std::is_nothrow_destructible<scope_success<F>>::value) {
   static_assert(std::is_rvalue_reference<F&&>::value, "make_scope_success requires an rvalue action; use std::move or pass a temporary; for a function, pass its address.");
   return scope_success<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
@@ -277,21 +277,21 @@ NEARGYE_SCOPE_GUARD_NODISCARD scope_success<F> make_scope_success(F&& action) no
 struct scope_exit_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
-scope_exit<F> operator<<(scope_exit_tag, F&& action) noexcept(noexcept(scope_exit<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+scope_exit<F> operator<<(scope_exit_tag, F&& action) noexcept(std::is_nothrow_constructible<scope_exit<F>, F>::value && std::is_nothrow_destructible<scope_exit<F>>::value) {
   return scope_exit<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
 
 struct scope_fail_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
-scope_fail<F> operator<<(scope_fail_tag, F&& action) noexcept(noexcept(scope_fail<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+scope_fail<F> operator<<(scope_fail_tag, F&& action) noexcept(std::is_nothrow_constructible<scope_fail<F>, F>::value && std::is_nothrow_destructible<scope_fail<F>>::value) {
   return scope_fail<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
 
 struct scope_success_tag {};
 
 template <typename F, typename std::enable_if<is_noarg_returns_void_action<typename std::decay<F>::type&>::value, int>::type = 0>
-scope_success<F> operator<<(scope_success_tag, F&& action) noexcept(noexcept(scope_success<F>{NEARGYE_SCOPE_GUARD_FWD(action)})) {
+scope_success<F> operator<<(scope_success_tag, F&& action) noexcept(std::is_nothrow_constructible<scope_success<F>, F>::value && std::is_nothrow_destructible<scope_success<F>>::value) {
   return scope_success<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
 

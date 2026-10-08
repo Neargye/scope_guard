@@ -106,6 +106,13 @@ static_assert(!CanMakeScopeExit<ActionWithArgument>::value,
               "scope_guard should reject actions with arguments through its public API.");
 static_assert(std::is_nothrow_destructible<decltype(scope_guard::make_scope_exit(LvalueNoexceptRvalueThrow{}))>::value,
               "scope_guard should compute noexcept from the stored lvalue action.");
+// Naming a factory with an lvalue in an unevaluated operand is not a hard error; calling it fails the rvalue static_assert.
+static_assert(std::is_same<decltype(scope_guard::make_scope_exit(std::declval<F&>())), scope_guard::detail::scope_exit<F&>>::value,
+              "make_scope_exit with an lvalue should be usable in unevaluated operands.");
+static_assert(std::is_same<decltype(scope_guard::make_scope_fail(std::declval<F&>())), scope_guard::detail::scope_fail<F&>>::value,
+              "make_scope_fail with an lvalue should be usable in unevaluated operands.");
+static_assert(std::is_same<decltype(scope_guard::make_scope_success(std::declval<F&>())), scope_guard::detail::scope_success<F&>>::value,
+              "make_scope_success with an lvalue should be usable in unevaluated operands.");
 
 int with_scope_return_count = 0;
 int function_pointer_count = 0;

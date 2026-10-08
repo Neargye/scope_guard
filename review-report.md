@@ -6,6 +6,9 @@ and then moved to the review branch `claude/determined-curie-siq6s6`. Toolchains
 
 ```
 $ git log --oneline a949020..HEAD   (review branch)
+cdfae9d [proposal] test: expect the rvalue diagnostic on msvc
+4f6d20b review: ci probes 2026-10-08
+e37e8f4 review: report 2026-10-08
 a8deabd [proposal] fix lvalue action diagnostics
 d91b723 fix nodiscard macro override
 1c3fb6c fix function action diagnostic
@@ -85,6 +88,11 @@ trivially safe, so it is deferred (D5). Everything else went to the decisions (D
     static_assert, by design).
   - A const rvalue still ends in "use of deleted function … scope_guard(const A&)" without a friendly message (D13).
   - MSVC/ClangCL behaviour of the new static_asserts comes only from CI.
+- **Follow-up `cdfae9d` (found by CI):** with the new specification MSVC no longer stops at the deleted
+  constructor (C2280) and reports the intended static_assert (C2338 "make_scope_exit requires an rvalue action").
+  `compile-fail-lvalue-action.t` pinned "error C2280" for MSVC and failed on all four MSVC jobs of the windows
+  workflow and on review CI msvc-x64/msvc-x86 (run 37834802179). `cdfae9d` makes the test expect the static_assert
+  text on every compiler; all workflows are green on it. Reverting the proposal means reverting both commits.
 
 ## Found but not fixed
 
@@ -103,6 +111,7 @@ trivially safe, so it is deferred (D5). Everything else went to the decisions (D
 | H16 `AnyNewerVersion` package compatibility | packaging policy, API | D12, Q8 |
 | H1 residual (detection reports true; const rvalue message) | see proposal risks | D13, Q1 |
 | H14, H15 (REJECTED), O5, O11 | no defect | D14 |
+| D15 | Review CI closed R1, R2 and R3 (D1 confirmed in practice): the pre-C++17 `uncaught_exceptions()` offset is correct on libc++abi (macOS arm64, Linux Clang 20 + libc++ with ASan/UBSan) and on 32-bit libsupc++; the own `__cxa_get_globals` declaration coexists with `<cxxabi.h>` in both include orders; the MSVC/ClangCL attribute branches work, `[[nodiscard]]` fires from C++17, `_Check_return_` is silent in C++14 and the MSVC `MAYBE_UNUSED` fallback suppresses nothing (it is not load-bearing). No code change. | All 51 probe predictions held on 6 jobs (run 37834802179); project suite green on all jobs at `cdfae9d` (run 37837125058). | Review CI section; `include/scope_guard.hpp:62-76,95-120,122-130,312-335` |
 
 ## Questions for the owner
 
@@ -139,13 +148,14 @@ trivially safe, so it is deferred (D5). Everything else went to the decisions (D
 | Standards sweep: test.cpp, 6 config scenarios (incl. new USER_NODISCARD, both cxxabi orders), 3 `-fno-exceptions` policies, 5 compile-fail scenarios (diagnostic text checked); g++-13 c++11/14/17/20/23, clang++-18 c++11/14/17/20/23/2c, `-Wall -Wextra -pedantic-errors -Werror` | 165/165 pass |
 | noexcept preservation of the [proposal] | 40/40 identical |
 
-Not verified here, and why:
+Not verified in the container (all but the last two items were then covered by CI, see Review CI):
 - Clang ASan/LSan: the runtime is missing (`libclang_rt.asan_static` not found).
 - `-m32`: no multilib.
 - libc++/libc++abi: no headers.
 - MSVC, ClangCL, AppleClang: no toolchain.
 - GCC ≠ 13, Clang ≠ 18: only one version of each in the container.
-- GCC `-std=c++2c`: not supported by GCC 13.
+- GCC `-std=c++2c`: not supported by GCC 13 (still not verified: no CI job has a GCC with c++2c).
+- H4 (Clang + libcxxrt) and H6 (non-GNU-emulating compiler, old macOS deployment target): no toolchain in the container or in CI; still UNCLEAR.
 
 What covers them: the existing CI after the push (GCC 12/14, Clang 16/17, AppleClang/libc++abi, MSVC x64, ClangCL) runs
 the new tests (function-action compile-fail, user-nodiscard, the `test.cpp` static_asserts). Review CI covers
@@ -154,6 +164,35 @@ R1/R2/R3 (32-bit, libc++abi, MSVC x86).
 CI extension: none needed for the fixed problems. They show up on every GCC/Clang/MSVC configuration, and the new
 tests are wired into the existing CMake suite that all three workflows run. Existing CI has no sanitizer job; a
 permanent `-fsanitize=address,undefined` GCC Debug job on ubuntu would be the minimal general extension.
+
+## Review CI
+
+Temporary workflow `.github/workflows/review.yml` + `review/probes/` (commit `4f6d20b`), runner from the runbook
+unchanged. Runner packages: `llvm.sh 20` from apt.llvm.org, `libc++-20-dev`, `libc++abi-20-dev`,
+`libclang-rt-20-dev` (clang-libcxx); `g++-multilib` from the Ubuntu archive (gcc-m32).
+
+Runs:
+- `4f6d20b`: review https://github.com/Neargye/scope_guard/actions/runs/37834802179 — probes 51/51 predictions held (5 + 5 + 5 + 12 + 12 + 12 rows);
+  project tests red on msvc-x64/msvc-x86 (and on the existing windows workflow, MSVC jobs) because of the [proposal]
+  diagnostic change, see the proposal section.
+- `cdfae9d`: review https://github.com/Neargye/scope_guard/actions/runs/37837125058, windows 37837124878,
+  ubuntu 37837124991, macos 37837124958 — all green.
+
+| job | runner / toolchain | project build + tests (`cdfae9d`) | probes | verdict |
+|---|---|---|---|---|
+| macos-appleclang | macos-15, AppleClang, libc++abi, arm64 | pass | R1 c++11/14/17 held (643 checks, 0 errors, custom path on c++11/14), R2 c++11/14 held (own declaration: yes, `_LIBCPPABI_VERSION` defined) | R1, R2 closed on libc++abi/arm64 |
+| clang-libcxx | ubuntu-24.04, Clang 20 + libc++/libc++abi, ASan+UBSan | pass (first project run with sanitizers on Clang) | R1 held (643/0), R2 held (own declaration: yes) | R1, R2 closed on Linux libc++abi; Clang ASan/UBSan gap from the container closed |
+| gcc-m32 | ubuntu-24.04, GCC 13 `-m32` | pass (first 32-bit run of the suite) | R1 held (643/0, `sizeof(void*) = 4`), R2 held (own declaration: no) | R1 closed on ILP32 libsupc++ |
+| msvc-x64 | windows-2022, MSVC 17.14 x64 | pass | R3 c++14..23 held; R3-nodiscard-msvc: C4834 from C++17, silent in C++14; R3-unused build-ok | R3 closed on MSVC x64 |
+| msvc-x86 | windows-2022, MSVC 17.14 Win32 | pass (first 32-bit MSVC run of the suite) | same as msvc-x64, all held | R3 closed on MSVC x86 |
+| clangcl | windows-2022, ClangCL x64 | pass | R3 held; R3-nodiscard-clangcl: diagnosed in every standard (`warn_unused_result` in C++14, `nodiscard` from C++17); R3-unused build-ok | R3 closed on ClangCL |
+
+Not covered by review CI: gcc-latest was left out on purpose (GCC 14 is in the existing CI; libsupc++ LP64 verified
+in the container). H4 and H6 have no CI job that can decide them (D4, D6).
+
+Proposed permanent CI extension for the owner (not added to existing workflows): a Linux Clang + libc++ job with
+`-fsanitize=address,undefined`, a `-m32` GCC job and an MSVC Win32 job — each found the suite green here, but none of
+these configurations is in the existing matrix, and the first two cover the pre-C++17 ABI path (D1).
 
 ## Decisions
 

@@ -84,10 +84,16 @@ namespace detail {
 #  define NEARGYE_SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define NEARGYE_SCOPE_GUARD_TRY           try {
 #  define NEARGYE_SCOPE_GUARD_CATCH         } catch (...) { SCOPE_GUARD_CATCH_HANDLER }
+#  define NEARGYE_SCOPE_GUARD_ABI_NAMESPACE suppress_throw_action
 #else
 #  define NEARGYE_SCOPE_GUARD_NOEXCEPT(...) noexcept(__VA_ARGS__)
 #  define NEARGYE_SCOPE_GUARD_TRY
 #  define NEARGYE_SCOPE_GUARD_CATCH
+#  if defined(SCOPE_GUARD_NO_THROW_ACTION)
+#    define NEARGYE_SCOPE_GUARD_ABI_NAMESPACE no_throw_action
+#  else
+#    define NEARGYE_SCOPE_GUARD_ABI_NAMESPACE may_throw_action
+#  endif
 #endif
 
 #define NEARGYE_SCOPE_GUARD_MOV(...) static_cast<typename std::remove_reference<decltype(__VA_ARGS__)>::type&&>(__VA_ARGS__)
@@ -191,6 +197,9 @@ struct is_nothrow_invocable_action
 template <typename T>
 struct is_nothrow_invocable_action<T, true>
     : std::integral_constant<bool, noexcept((std::declval<T>())())> {};
+
+// Guards live in an inline namespace named after the action setting, so translation units configured differently do not share destructors.
+inline namespace NEARGYE_SCOPE_GUARD_ABI_NAMESPACE {
 
 template <typename F, typename P>
 class scope_guard {
@@ -296,11 +305,14 @@ scope_success<F> operator<<(scope_success_tag, F&& action) noexcept(noexcept(sco
   return scope_success<F>{NEARGYE_SCOPE_GUARD_FWD(action)};
 }
 
+} // namespace scope_guard::detail::NEARGYE_SCOPE_GUARD_ABI_NAMESPACE
+
 #undef NEARGYE_SCOPE_GUARD_MOV
 #undef NEARGYE_SCOPE_GUARD_FWD
 #undef NEARGYE_SCOPE_GUARD_NOEXCEPT
 #undef NEARGYE_SCOPE_GUARD_TRY
 #undef NEARGYE_SCOPE_GUARD_CATCH
+#undef NEARGYE_SCOPE_GUARD_ABI_NAMESPACE
 #if defined(NEARGYE_SCOPE_GUARD_UNDEF_NODISCARD)
 #  undef NEARGYE_SCOPE_GUARD_NODISCARD
 #  undef NEARGYE_SCOPE_GUARD_UNDEF_NODISCARD

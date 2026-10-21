@@ -1,10 +1,7 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
 
-// CMake builds this source once for each isolated header configuration.
-#if (defined(SCOPE_GUARD_TEST_NO_THROW_ACTION) + defined(SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION) + defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION) + defined(SCOPE_GUARD_TEST_CXXABI)) != 1
-#  error "Exactly one scope_guard configuration test must be selected."
-#endif
+// CMake builds this source once for each header configuration selected by SCOPE_GUARD_TEST_*.
 
 #if defined(SCOPE_GUARD_TEST_CXXABI_FIRST)
 #  include <cxxabi.h>
@@ -31,6 +28,30 @@ int scope_guard_suppressed_exceptions = 0;
 #  include <cxxabi.h>
 #endif
 
+#if defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION) || defined(SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION)
+struct ThrowingMoveAction {
+  ThrowingMoveAction(int& executions, bool& throw_on_move)
+      : executions_{&executions},
+        throw_on_move_{&throw_on_move} {}
+  ThrowingMoveAction(const ThrowingMoveAction&) = delete;
+  ThrowingMoveAction(ThrowingMoveAction&& other)
+      : executions_{other.executions_},
+        throw_on_move_{other.throw_on_move_} {
+    if (*throw_on_move_) {
+      throw std::runtime_error{"move"};
+    }
+  }
+
+  void operator() () {
+    ++*executions_;
+  }
+
+  int* executions_;
+  bool* throw_on_move_;
+};
+
+#endif
+
 #if defined(SCOPE_GUARD_TEST_NO_THROW_ACTION)
 
 struct NoThrowAction {
@@ -51,6 +72,34 @@ TEST_CASE("SCOPE_GUARD_NO_THROW_ACTION accepts noexcept actions") {
 }
 
 #elif defined(SCOPE_GUARD_TEST_SUPPRESS_THROW_ACTION)
+
+static_assert(std::is_nothrow_destructible<decltype(scope_guard::make_scope_exit(ThrowingMoveAction{std::declval<int&>(), std::declval<bool&>()}))>::value,
+              "SUPPRESS must suppress throwing invocations, independently of throwing moves.");
+
+TEST_CASE("SUPPRESS does not catch construction or guard move exceptions") {
+  int executions = 0;
+  bool throw_on_move = true;
+  scope_guard_suppressed_exceptions = 0;
+
+  REQUIRE_THROWS_AS([&]() {
+    auto guard = scope_guard::make_scope_exit(ThrowingMoveAction{executions, throw_on_move});
+    (void)guard;
+  }(), std::runtime_error);
+  REQUIRE(executions == 0);
+
+  throw_on_move = false;
+  {
+    auto source = scope_guard::make_scope_exit(ThrowingMoveAction{executions, throw_on_move});
+    throw_on_move = true;
+    REQUIRE_THROWS_AS([&]() {
+      auto destination = std::move(source);
+      (void)destination;
+    }(), std::runtime_error);
+    REQUIRE(executions == 0);
+  }
+  REQUIRE(executions == 1);
+  REQUIRE(scope_guard_suppressed_exceptions == 0);
+}
 
 TEST_CASE("SCOPE_GUARD_SUPPRESS_THROW_ACTION suppresses cleanup exceptions") {
   int count = 0;
@@ -93,27 +142,6 @@ TEST_CASE("suppressed cleanup exceptions preserve the exception being unwound") 
 }
 
 #elif defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION)
-
-struct ThrowingMoveAction {
-  ThrowingMoveAction(int& executions, bool& throw_on_move)
-      : executions_{&executions},
-        throw_on_move_{&throw_on_move} {}
-  ThrowingMoveAction(const ThrowingMoveAction&) = delete;
-  ThrowingMoveAction(ThrowingMoveAction&& other)
-      : executions_{other.executions_},
-        throw_on_move_{other.throw_on_move_} {
-    if (*throw_on_move_) {
-      throw std::runtime_error{"move"};
-    }
-  }
-
-  void operator() () {
-    ++*executions_;
-  }
-
-  int* executions_;
-  bool* throw_on_move_;
-};
 
 TEST_CASE("a throwing action move does not establish a guard") {
   int executions = 0;
@@ -192,4 +220,6 @@ TEST_CASE("cxxabi header compatibility preserves exception counting") {
   REQUIRE(successes == 0);
 }
 
+#else
+#  error "Select a scope_guard configuration test."
 #endif

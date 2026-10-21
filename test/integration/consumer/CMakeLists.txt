@@ -8,6 +8,8 @@ endif()
 
 if(SCOPE_GUARD_SOURCE_DIR)
     if(NOT SCOPE_GUARD_TEST_SUBPROJECT_DEFAULTS)
+        # The parent's standard must not override the library's per-standard tests.
+        set(CMAKE_CXX_STANDARD 17)
         set(SCOPE_GUARD_OPT_BUILD_EXAMPLES ON CACHE BOOL "" FORCE)
         set(SCOPE_GUARD_OPT_BUILD_TESTS ON CACHE BOOL "" FORCE)
         set(SCOPE_GUARD_OPT_INSTALL OFF CACHE BOOL "" FORCE)

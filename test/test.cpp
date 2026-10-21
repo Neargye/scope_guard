@@ -27,6 +27,7 @@
 #include <scope_guard.hpp>
 
 #include <initializer_list>
+#include <functional>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -60,6 +61,23 @@ struct RvalueOnly {
   void operator() () && {}
 };
 
+struct MoveOnlyAction {
+  explicit MoveOnlyAction(int& calls) noexcept : calls_{&calls} {}
+  MoveOnlyAction(MoveOnlyAction&&) noexcept = default;
+  MoveOnlyAction(const MoveOnlyAction&) = delete;
+
+  void operator() () & noexcept { ++*calls_; }
+
+  int* calls_;
+};
+
+using PublicGuard = decltype(scope_guard::make_scope_exit(F{}));
+static_assert(std::is_move_constructible<PublicGuard>::value, "Guards must be movable.");
+static_assert(!std::is_default_constructible<PublicGuard>::value, "Guards require an action.");
+static_assert(!std::is_copy_constructible<PublicGuard>::value, "Guards must not be copied.");
+static_assert(!std::is_copy_assignable<PublicGuard>::value, "Guards must not be copy-assigned.");
+static_assert(!std::is_move_assignable<PublicGuard>::value, "Guards must not be move-assigned.");
+
 struct ReturnsInt {
   int operator() () {
     return 0;
@@ -87,7 +105,8 @@ struct InitializerListAction {
 template <typename T>
 class CanMakeScopeExit {
   template <typename U>
-  static auto Test(int) -> decltype(scope_guard::make_scope_exit(std::declval<U>()), std::true_type{});
+  // GCC 9 warns about discarded results even in the comma expression of decltype.
+  static auto Test(int) -> std::is_class<decltype(scope_guard::make_scope_exit(std::declval<U>()))>;
 
   template <typename>
   static std::false_type Test(...);
@@ -197,6 +216,32 @@ TEST_CASE("factory functions create guards") {
     }());
     REQUIRE(function_pointer_count == 1);
   }
+}
+
+TEST_CASE("move-only lvalue-callable actions transfer with the guard") {
+  int calls = 0;
+  {
+    auto source = scope_guard::make_scope_exit(MoveOnlyAction{calls});
+    auto destination = std::move(source);
+    REQUIRE(calls == 0);
+  }
+  REQUIRE(calls == 1);
+}
+
+TEST_CASE("reference wrappers invoke an existing noncopyable action") {
+  int calls = 0;
+  MoveOnlyAction action{calls};
+  {
+    auto exit_guard = scope_guard::make_scope_exit(std::ref(action));
+    auto success_guard = scope_guard::make_scope_success(std::ref(action));
+    REQUIRE(calls == 0);
+  }
+  REQUIRE(calls == 2);
+  REQUIRE_THROWS_AS([&]() {
+    auto fail_guard = scope_guard::make_scope_fail(std::ref(action));
+    throw std::runtime_error{"body failure"};
+  }(), std::runtime_error);
+  REQUIRE(calls == 3);
 }
 
 TEST_CASE("move transfers execution ownership") {

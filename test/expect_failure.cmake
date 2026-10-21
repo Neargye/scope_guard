@@ -21,7 +21,14 @@ if("${result}" STREQUAL "0")
     message(FATAL_ERROR "${subject} was expected to fail, but succeeded.")
 endif()
 
-if(EXPECTED_DIAGNOSTIC AND NOT "${combined_output}" MATCHES "${EXPECTED_DIAGNOSTIC}")
+set(diagnostic_output "${combined_output}")
+if(BUILD_TARGET)
+    # Match actual GCC/Clang/MSVC diagnostics, not source excerpts or build commands.
+    string(REGEX MATCHALL "[^\n]*: (fatal error|error|warning)(:| [A-Z][0-9]+:)[^\n]*" diagnostic_lines "${combined_output}")
+    string(JOIN "\n" diagnostic_output ${diagnostic_lines})
+endif()
+
+if(EXPECTED_DIAGNOSTIC AND NOT "${diagnostic_output}" MATCHES "${EXPECTED_DIAGNOSTIC}")
     message(FATAL_ERROR "${subject} failed without expected diagnostic '${EXPECTED_DIAGNOSTIC}'.\n${combined_output}")
 endif()
 

@@ -1,10 +1,7 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
 
-// CMake builds this source once for each expected compile-time or runtime failure.
-#if (defined(SCOPE_GUARD_TEST_MULTIPLE_THROW_POLICIES) + defined(SCOPE_GUARD_TEST_REJECT_THROWING_ACTION) + defined(SCOPE_GUARD_TEST_REJECT_THROWING_MOVE) + defined(SCOPE_GUARD_TEST_REJECT_LVALUE_ACTION) + defined(SCOPE_GUARD_TEST_THROW_DURING_UNWINDING)) != 1
-#  error "Exactly one scope_guard failure test must be selected."
-#endif
+// CMake builds this source once for each expected failure selected by SCOPE_GUARD_TEST_*.
 
 #if defined(SCOPE_GUARD_TEST_MULTIPLE_THROW_POLICIES)
 #  define SCOPE_GUARD_MAY_THROW_ACTION
@@ -52,7 +49,7 @@ struct Action {
 
 int main() {
   Action action;
-  auto guard = scope_guard::make_scope_exit(action);
+  auto guard = scope_guard::SCOPE_GUARD_TEST_FACTORY(action);
   (void)guard;
 }
 
@@ -87,4 +84,6 @@ int main() {
   }
 }
 
+#else
+#  error "Select a scope_guard failure test."
 #endif

@@ -97,6 +97,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
             scope_guard_test(no-exceptions-${name}-cpp${std} macro_test.cpp STD ${std} OPTIONS -fno-exceptions DEFINES SCOPE_GUARD_${policy}_ACTION)
         endforeach()
     endforeach()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        scope_guard_test(no-cxx-exceptions-suppress-throw macro_test.cpp OPTIONS -fexceptions -fno-cxx-exceptions DEFINES SCOPE_GUARD_SUPPRESS_THROW_ACTION)
+    endif()
 endif()
 
 # Expected failures.

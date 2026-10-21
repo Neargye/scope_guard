@@ -79,7 +79,7 @@ namespace scope_guard {
 
 namespace detail {
 
-#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND))
+#if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(_CPPUNWIND))
 #  define NEARGYE_SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define NEARGYE_SCOPE_GUARD_TRY           try {
 #  define NEARGYE_SCOPE_GUARD_CATCH         } catch (...) { SCOPE_GUARD_CATCH_HANDLER }

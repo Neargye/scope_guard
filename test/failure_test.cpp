@@ -66,6 +66,26 @@ int main() {
   (void)guard;
 }
 
+#elif defined(SCOPE_GUARD_TEST_DISCARD_RESULT)
+
+int main() {
+  scope_guard::SCOPE_GUARD_TEST_FACTORY([]() {});
+}
+
+#elif defined(SCOPE_GUARD_TEST_UNUSED_ACTION_VARIABLE)
+
+int main() {
+#  if defined(SCOPE_GUARD_TEST_WITH)
+  WITH_SCOPE_EXIT({
+    int unused_in_action = 0;
+  }) {}
+#  else
+  SCOPE_EXIT{
+    int unused_in_action = 0;
+  };
+#  endif
+}
+
 #elif defined(SCOPE_GUARD_TEST_REJECT_THROWING_DESTRUCTOR)
 
 struct ThrowingDestructorAction {

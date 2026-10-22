@@ -93,30 +93,16 @@ namespace detail {
 #define NEARGYE_SCOPE_GUARD_FWD(...) static_cast<decltype(__VA_ARGS__)&&>(__VA_ARGS__)
 
 // NEARGYE_SCOPE_GUARD_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
-#if !defined(NEARGYE_SCOPE_GUARD_NODISCARD)
-#  if defined(__clang__)
-#    if (__clang_major__ * 10 + __clang_minor__) >= 39 && __cplusplus >= 201703L
-#      define NEARGYE_SCOPE_GUARD_NODISCARD [[nodiscard]]
-#    else
-#      define NEARGYE_SCOPE_GUARD_NODISCARD __attribute__((__warn_unused_result__))
-#    endif
-#  elif defined(__GNUC__)
-#    if __GNUC__ >= 7 && __cplusplus >= 201703L
-#      define NEARGYE_SCOPE_GUARD_NODISCARD [[nodiscard]]
-#    else
-#      define NEARGYE_SCOPE_GUARD_NODISCARD __attribute__((__warn_unused_result__))
-#    endif
-#  elif defined(_MSC_VER)
-#    if _MSC_VER >= 1911 && defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
-#      define NEARGYE_SCOPE_GUARD_NODISCARD [[nodiscard]]
-#    elif defined(_Check_return_)
-#      define NEARGYE_SCOPE_GUARD_NODISCARD _Check_return_
-#    else
-#      define NEARGYE_SCOPE_GUARD_NODISCARD
-#    endif
+#if defined(__clang__) || defined(__GNUC__)
+#  if __cplusplus >= 201703L
+#    define NEARGYE_SCOPE_GUARD_NODISCARD [[nodiscard]]
 #  else
-#    define NEARGYE_SCOPE_GUARD_NODISCARD
+#    define NEARGYE_SCOPE_GUARD_NODISCARD __attribute__((__warn_unused_result__))
 #  endif
+#elif defined(_MSC_VER)
+#  define NEARGYE_SCOPE_GUARD_NODISCARD [[nodiscard]]
+#else
+#  define NEARGYE_SCOPE_GUARD_NODISCARD
 #endif
 
 #if !defined(_MSC_VER) && (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201703L
@@ -318,34 +304,20 @@ using detail::make_scope_success;
 } // namespace scope_guard
 
 // NEARGYE_SCOPE_GUARD_MAYBE_UNUSED suppresses compiler warnings on unused entities, if any.
-#if !defined(NEARGYE_SCOPE_GUARD_MAYBE_UNUSED)
-#  if defined(__clang__)
-#    if (__clang_major__ * 10 + __clang_minor__) >= 39 && __cplusplus >= 201703L
-#      define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED [[maybe_unused]]
-#    else
-#      define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED __attribute__((__unused__))
-#    endif
-#  elif defined(__GNUC__)
-#    if __GNUC__ >= 7 && __cplusplus >= 201703L
-#      define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED [[maybe_unused]]
-#    else
-#      define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED __attribute__((__unused__))
-#    endif
-#  elif defined(_MSC_VER)
-#    if _MSC_VER >= 1911 && defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
-#      define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED [[maybe_unused]]
-#    else
-#      define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED __pragma(warning(suppress : 4100 4101 4189))
-#    endif
+#if defined(__clang__) || defined(__GNUC__)
+#  if __cplusplus >= 201703L
+#    define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED [[maybe_unused]]
 #  else
-#    define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED
+#    define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED __attribute__((__unused__))
 #  endif
+#elif defined(_MSC_VER) && _MSVC_LANG >= 201703L
+#  define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED [[maybe_unused]]
+#else
+#  define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED
 #endif
 
-#if !defined(NEARGYE_SCOPE_GUARD_STR_CONCAT)
-#  define NEARGYE_SCOPE_GUARD_STR_CONCAT_(s1, s2) s1##s2
-#  define NEARGYE_SCOPE_GUARD_STR_CONCAT(s1, s2)  NEARGYE_SCOPE_GUARD_STR_CONCAT_(s1, s2)
-#endif
+#define NEARGYE_SCOPE_GUARD_STR_CONCAT_(s1, s2) s1##s2
+#define NEARGYE_SCOPE_GUARD_STR_CONCAT(s1, s2)  NEARGYE_SCOPE_GUARD_STR_CONCAT_(s1, s2)
 
 #if !defined(NEARGYE_SCOPE_GUARD_COUNTER)
 #  if defined(__COUNTER__)

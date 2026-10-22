@@ -143,6 +143,31 @@ TEST_CASE("suppressed cleanup exceptions preserve the exception being unwound") 
 
 #elif defined(SCOPE_GUARD_TEST_THROWING_MOVE_CONSTRUCTION)
 
+bool throw_from_action_destructor = false;
+
+struct ThrowingDestructorAction {
+  ThrowingDestructorAction() = default;
+  ThrowingDestructorAction(ThrowingDestructorAction&&) noexcept {}
+  ~ThrowingDestructorAction() noexcept(false) {
+    if (throw_from_action_destructor) {
+      throw_from_action_destructor = false;
+      throw std::runtime_error{"action destructor"};
+    }
+  }
+
+  void operator() () noexcept {}
+};
+
+static_assert(!std::is_nothrow_destructible<decltype(scope_guard::make_scope_exit(ThrowingDestructorAction{}))>::value,
+              "scope_guard should not be noexcept when the action destructor may throw.");
+
+TEST_CASE("exceptions from the action destructor propagate") {
+  REQUIRE_THROWS_AS([]() {
+    auto guard = scope_guard::make_scope_exit(ThrowingDestructorAction{});
+    throw_from_action_destructor = true;
+  }(), std::runtime_error);
+}
+
 TEST_CASE("a throwing action move does not establish a guard") {
   int executions = 0;
   bool throw_on_move = true;

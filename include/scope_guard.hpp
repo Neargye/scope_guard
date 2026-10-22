@@ -206,6 +206,10 @@ class scope_guard {
   static_assert(is_nothrow_invocable_action<A&>::value,
                 "scope_guard requires noexcept invocable action.");
 #endif
+#if defined(SCOPE_GUARD_NO_THROW_ACTION) || defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
+  static_assert(std::is_nothrow_destructible<A>::value,
+                "scope_guard requires nothrow destructible action.");
+#endif
 #if defined(SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE)
   static_assert(std::is_nothrow_move_constructible<A>::value,
                 "scope_guard requires nothrow move-constructible action.");
@@ -241,7 +245,7 @@ class scope_guard {
     policy_.dismiss();
   }
 
-  ~scope_guard() NEARGYE_SCOPE_GUARD_NOEXCEPT(is_nothrow_invocable_action<A&>::value) {
+  ~scope_guard() NEARGYE_SCOPE_GUARD_NOEXCEPT(is_nothrow_invocable_action<A&>::value && std::is_nothrow_destructible<A>::value) {
     if (policy_.should_execute()) {
       NEARGYE_SCOPE_GUARD_TRY
         action_();

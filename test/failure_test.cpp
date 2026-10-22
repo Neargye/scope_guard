@@ -66,6 +66,20 @@ int main() {
   (void)guard;
 }
 
+#elif defined(SCOPE_GUARD_TEST_REJECT_THROWING_DESTRUCTOR)
+
+struct ThrowingDestructorAction {
+  ThrowingDestructorAction() = default;
+  ThrowingDestructorAction(ThrowingDestructorAction&&) noexcept {}
+  ~ThrowingDestructorAction() noexcept(false) {}
+  void operator() () noexcept {}
+};
+
+int main() {
+  auto guard = scope_guard::make_scope_exit(ThrowingDestructorAction{});
+  (void)guard;
+}
+
 #elif defined(SCOPE_GUARD_TEST_THROW_DURING_UNWINDING)
 
 #  include <cstdio>

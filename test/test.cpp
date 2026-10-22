@@ -208,13 +208,30 @@ TEST_CASE("factory functions create guards") {
     REQUIRE(count == 1);
   }
 
-  SUBCASE("function pointer action") {
+  SUBCASE("function names and pointers on normal exit") {
+    function_pointer_count = 0;
+    {
+      auto exit_guard = scope_guard::make_scope_exit(function_pointer_cleanup);
+      auto pointer_guard = scope_guard::make_scope_exit(&function_pointer_cleanup);
+      auto fail_guard = scope_guard::make_scope_fail(function_pointer_cleanup);
+      auto success_guard = scope_guard::make_scope_success(function_pointer_cleanup);
+      REQUIRE(function_pointer_count == 0);
+    }
+    REQUIRE(function_pointer_count == 3);
+  }
+
+  SUBCASE("function names and pointers during unwinding") {
     function_pointer_count = 0;
 
-    REQUIRE_NOTHROW([&]() {
-      auto sg = scope_guard::make_scope_exit(&function_pointer_cleanup);
-    }());
-    REQUIRE(function_pointer_count == 1);
+    REQUIRE_THROWS_AS([]() {
+      auto exit_guard = scope_guard::make_scope_exit(function_pointer_cleanup);
+      auto pointer_guard = scope_guard::make_scope_exit(&function_pointer_cleanup);
+      auto fail_guard = scope_guard::make_scope_fail(function_pointer_cleanup);
+      auto success_guard = scope_guard::make_scope_success(function_pointer_cleanup);
+      REQUIRE(function_pointer_count == 0);
+      throw std::runtime_error{"body failure"};
+    }(), std::runtime_error);
+    REQUIRE(function_pointer_count == 3);
   }
 }
 

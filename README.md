@@ -3,181 +3,116 @@
 
 # Scope Guard & Defer C++
 
-A scope guard runs a deferred action when its scope is left:
+A header-only C++11 library for cleanup and rollback when leaving a scope. No dependencies.
 
-* `scope_exit` - executes the action on scope exit.
+## Usage
 
-* `scope_fail` - executes the action if an exception leaves the scope.
+```cpp
+#include <cstdio>
+#include <scope_guard.hpp>
 
-* `scope_success` - executes the action if the scope exits normally.
-
-Normal C++ control flow, including `return`, `break`, `continue`, and exceptions, still destroys the guard. This makes scope guards useful for cleanup and rollback across different exit paths.
-
-## Features
-
-* C++11
-* Header-only
-* Dependency-free
-* Thin callback wrapping, no added std::function or virtual table penalties
-* No silently ignored return values; callbacks must return `void`
-* Defer or Scope Guard syntax and "With" syntax
-
-## [Examples](example)
-
-* [Scope Guard on exit and defer](example/scope_exit_example.cpp)
-
-  ```cpp
-  #include <fstream>
-  #include <scope_guard.hpp>
-
-  std::fstream file("test.txt");
-  SCOPE_EXIT{ file.close(); }; // File closes when the enclosing scope is left.
-  ```
-
-* [Scope Guard on fail](example/scope_fail_example.cpp)
-
-  ```cpp
-  persons.push_back(person);
-  SCOPE_FAIL{ persons.pop_back(); }; // Roll back if a later operation throws.
-  ```
-
-* [Scope Guard on success](example/scope_success_example.cpp)
-
-  ```cpp
-  Person person{/*...*/};
-  // ...
-  SCOPE_SUCCESS{ persons.push_back(person); }; // Add the person if the scope exits normally.
-  ```
-
-* Custom Scope Guard
-
-  ```cpp
-  persons.push_back(person);
-
-  MAKE_SCOPE_EXIT(rollback) {
-    persons.pop_back();
-  };
-  // ...
-  rollback.dismiss(); // Commit the change and cancel the rollback.
-  ```
-
-  ```cpp
-  persons.push_back(person);
-
-  auto rollback = scope_guard::make_scope_exit([&]() { persons.pop_back(); });
-  // ...
-  rollback.dismiss(); // Commit the change and cancel the rollback.
-  ```
-
-* With Scope Guard
-
-  ```cpp
-  std::fstream file("test.txt");
-  WITH_SCOPE_EXIT({ file.close(); }) { // File closes when this block is left.
-    // ...
+void read_file() {
+  auto* file = std::fopen("test.txt", "r");
+  if (!file) {
+    return;
   }
-  ```
+  SCOPE_EXIT { std::fclose(file); };
+  // Use file here. It is closed when this scope is left.
+}
+```
 
-  > Inside `WITH_SCOPE_*`, `break` and `continue` affect only this block, not an enclosing loop. Use a regular `SCOPE_*` guard to control an outer loop.
+| When the action runs | Macro | Factory |
+|---|---|---|
+| On any scope exit | `SCOPE_EXIT { action; };` | `scope_guard::make_scope_exit(action)` |
+| When an exception leaves the scope | `SCOPE_FAIL { action; };` | `scope_guard::make_scope_fail(action)` |
+| When the scope exits normally | `SCOPE_SUCCESS { action; };` | `scope_guard::make_scope_success(action)` |
 
-## Synopsis
+`return`, `break` and `continue` count as normal exits. Guards run in reverse order. Macro actions capture by reference (`[&]`), so referenced objects must outlive the guard.
 
-### Reference
+### Named guards and cancellation
 
-#### scope_exit
+Use `MAKE_SCOPE_EXIT(name)`, `MAKE_SCOPE_FAIL(name)` or `MAKE_SCOPE_SUCCESS(name)` to name a guard. Call `dismiss()` to cancel its action:
 
-* `scope_guard::make_scope_exit(F&& action);` - returns a scope_exit guard with the action.
-* `SCOPE_EXIT{action};` - macro for creating scope_exit with the action.
-* `MAKE_SCOPE_EXIT(name) {action};` - macro for creating named scope_exit with the action.
-* `WITH_SCOPE_EXIT({action}) {/*...*/}` - macro for creating a scope with scope_exit with the action.
+```cpp
+persons.push_back(person);
+MAKE_SCOPE_EXIT(rollback) { persons.pop_back(); };
+// ...
+rollback.dismiss(); // Keep the change.
+```
 
-#### scope_fail
+Guards can be move-constructed, transferring the action to the new guard. They cannot be copied or assigned.
 
-* `scope_guard::make_scope_fail(F&& action);` - returns a scope_fail guard with the action.
-* `SCOPE_FAIL{action};` - macro for creating scope_fail with the action.
-* `MAKE_SCOPE_FAIL(name) {action};` - macro for creating named scope_fail with the action.
-* `WITH_SCOPE_FAIL({action}) {/*...*/}` - macro for creating a scope with scope_fail with the action.
+### Factories
 
-#### scope_success
+```cpp
+auto guard = scope_guard::make_scope_exit([&]() { std::fclose(file); });
+```
 
-* `scope_guard::make_scope_success(F&& action);` - returns a scope_success guard with the action.
-* `SCOPE_SUCCESS{action};` - macro for creating scope_success with the action.
-* `MAKE_SCOPE_SUCCESS(name) {action};` - macro for creating named scope_success with the action.
-* `WITH_SCOPE_SUCCESS({action}) {/*...*/}` - macro for creating a scope with scope_success with the action.
+Actions take no arguments and return `void`. Pass a function name, a temporary callable or `std::move(action)`. Use `std::ref(action)` to keep a reference.
 
-#### defer
+### Guards for a block
 
-* `DEFER{action};` - macro for creating defer with the action.
-* `MAKE_DEFER(name) {action};` - macro for creating named defer with the action.
-* `WITH_DEFER({action}) {/*...*/}` - macro for creating a scope with defer with the action.
+`WITH_SCOPE_EXIT`, `WITH_SCOPE_FAIL` and `WITH_SCOPE_SUCCESS` apply their action to the following block:
 
-### Interface of scope_guard
+```cpp
+WITH_SCOPE_EXIT({ std::fclose(file); }) {
+  // Use file here. It is closed when this block is left.
+}
+```
 
-Named guards provide `dismiss()`, which disables the action.
+Inside `WITH_SCOPE_*`, `break` and `continue` affect this block, not an enclosing loop.
 
-Guards can be move-constructed, but cannot be copied or assigned. Moving transfers responsibility for executing the action.
+`DEFER`, `MAKE_DEFER(name)` and `WITH_DEFER` are aliases for the corresponding `SCOPE_EXIT` macros.
 
-#### Exception settings
+See the [exit/defer](example/scope_exit_example.cpp), [failure](example/scope_fail_example.cpp) and [success](example/scope_success_example.cpp) examples.
 
-* `SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE` - requires a nothrow move-constructible action. It can be combined with any action policy.
+## Exception settings
 
-* `SCOPE_GUARD_MAY_THROW_ACTION` - allows action exceptions to propagate.
+Define settings before including `scope_guard.hpp`, consistently in every translation unit. Choose at most one action policy:
 
-* `SCOPE_GUARD_NO_THROW_ACTION` - requires `noexcept` callables and declares macro-generated actions `noexcept`.
+| Macro | Behavior |
+|---|---|
+| `SCOPE_GUARD_MAY_THROW_ACTION` (default) | Exceptions from actions propagate. |
+| `SCOPE_GUARD_NO_THROW_ACTION` | Requires `noexcept` actions. |
+| `SCOPE_GUARD_SUPPRESS_THROW_ACTION` | Catches exceptions thrown by actions. |
 
-* `SCOPE_GUARD_SUPPRESS_THROW_ACTION` - suppresses exceptions thrown by the action.
+With the default policy, an action that throws during stack unwinding terminates the program.
 
-* By default, `SCOPE_GUARD_MAY_THROW_ACTION` is used. Action exceptions propagate normally. If an exception escapes an action during stack unwinding, the program terminates. Use `SCOPE_GUARD_NO_THROW_ACTION` or `SCOPE_GUARD_SUPPRESS_THROW_ACTION` for cleanup paths that must not throw.
+`SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE` additionally requires a nothrow move-constructible action and can be combined with any policy.
 
-* `SCOPE_GUARD_CATCH_HANDLER` - a non-throwing statement run when an action exception is caught. It is ignored unless `SCOPE_GUARD_SUPPRESS_THROW_ACTION` is defined.
+With the suppress policy, `SCOPE_GUARD_CATCH_HANDLER` sets a non-throwing statement to run when an action throws:
 
-  ```cpp
-  #define SCOPE_GUARD_SUPPRESS_THROW_ACTION
-  #define SCOPE_GUARD_CATCH_HANDLER /* log cleanup failure */ ;
-  #include <scope_guard.hpp>
-  ```
-
-Define exception settings consistently in every translation unit before including `scope_guard.hpp`. `SCOPE_GUARD_CATCH_HANDLER` must not throw.
-
-### Remarks
-
-* Factories accept only rvalue callables and store them by value. Pass a temporary or use `std::move`:
-
-  ```cpp
-  auto action = [&]() { /* cleanup */ };
-  auto guard = scope_guard::make_scope_exit(std::move(action)); // OK
-  // auto guard = scope_guard::make_scope_exit(action); // compile error
-  ```
-
-* Actions take no arguments and must return `void`.
-
-* Macro-generated actions use `[&]` lambda capture. Use a factory function with an explicit lambda capture when different ownership is required.
-
-* Guards execute in reverse construction order.
+```cpp
+void log_cleanup_failure() noexcept;
+#define SCOPE_GUARD_SUPPRESS_THROW_ACTION
+#define SCOPE_GUARD_CATCH_HANDLER log_cleanup_failure();
+#include <scope_guard.hpp>
+```
 
 ## Integration
 
-`SCOPE_GUARD_OPT_BUILD_EXAMPLES`, `SCOPE_GUARD_OPT_BUILD_TESTS`, and `SCOPE_GUARD_OPT_INSTALL` default to `ON` when scope_guard is the top-level project and `OFF` when it is a subproject.
+**Single header:** copy [scope_guard.hpp](include/scope_guard.hpp) into your project.
 
-For manual integration, copy [scope_guard.hpp](include/scope_guard.hpp) into your project.
-
-For CMake integration, add this project as a subdirectory and link the interface target:
+**CMake subdirectory:**
 
 ```cmake
 add_subdirectory(scope_guard)
 target_link_libraries(your_target PRIVATE scope_guard::scope_guard)
 ```
 
-If scope_guard is installed as a CMake package:
+**Installed CMake package:**
 
 ```cmake
 find_package(scope_guard CONFIG REQUIRED)
 target_link_libraries(your_target PRIVATE scope_guard::scope_guard)
 ```
 
-## References
+CMake 3.15 or newer is required. `SCOPE_GUARD_OPT_BUILD_EXAMPLES`, `SCOPE_GUARD_OPT_BUILD_TESTS` and `SCOPE_GUARD_OPT_INSTALL` default to `ON` for standalone builds and `OFF` for subprojects.
 
-* [Andrei Alexandrescu "Systematic Error Handling in C++"](https://www.youtube.com/watch?v=kaI4R0Ng4E8)
-* [Andrei Alexandrescu "Declarative Control Flow"](https://youtu.be/WjTrfoiB0MQ)
+## Compiler compatibility
+
+Requires C++11 or newer with Clang 9+, GCC 9+ or Visual Studio 2019+ (v142).
+
+On Clang 22 with `-pedantic`, unnamed guards inside another macro's arguments (for example a test assertion) warn about `__COUNTER__`. Use a named guard, a factory or Clang 23 there.
 
 ## Licensed under the [MIT License](LICENSE)

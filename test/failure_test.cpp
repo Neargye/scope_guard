@@ -86,6 +86,18 @@ int main() {
 #  endif
 }
 
+#elif defined(SCOPE_GUARD_TEST_USER_COUNTER)
+
+int main() {
+  int value = 0;
+#  if defined(SCOPE_GUARD_TEST_WITH)
+  WITH_SCOPE_EXIT({ value = __COUNTER__; }) {}
+#  else
+  SCOPE_EXIT{ value = __COUNTER__; };
+#  endif
+  return value;
+}
+
 #elif defined(SCOPE_GUARD_TEST_REJECT_THROWING_DESTRUCTOR)
 
 struct ThrowingDestructorAction {

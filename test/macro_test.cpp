@@ -1,8 +1,8 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
 
-// Plain program without a test framework: guard macros are expanded as ordinary statements.
-// CMake also builds it with exceptions disabled.
+// Plain program without a test framework: guard macros are expanded as ordinary statements,
+// which keeps this file strict on Clang 22. CMake also builds it with exceptions disabled.
 #include <scope_guard.hpp>
 
 struct NoThrowAction {

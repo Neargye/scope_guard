@@ -32,6 +32,22 @@ if(NOT SUPPORTED_STANDARDS)
 endif()
 list(GET SUPPORTED_STANDARDS 0 DEFAULT_STD)
 
+# Stock Clang 22 reports __COUNTER__ in guards nested in doctest assertion arguments.
+set(DOCTEST_OPTIONS)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 22)
+    include(CheckCXXSourceCompiles)
+    set(CMAKE_REQUIRED_FLAGS -pedantic-errors)
+    set(CMAKE_REQUIRED_INCLUDES "${PROJECT_SOURCE_DIR}/include")
+    check_cxx_source_compiles("#include <scope_guard.hpp>
+#define ARG(...) __VA_ARGS__
+int main() { ARG(SCOPE_EXIT{};) }" SCOPE_GUARD_NESTED_COUNTER_COMPILES)
+    unset(CMAKE_REQUIRED_FLAGS)
+    unset(CMAKE_REQUIRED_INCLUDES)
+    if(NOT SCOPE_GUARD_NESTED_COUNTER_COMPILES)
+        set(DOCTEST_OPTIONS -Wno-c2y-extensions)
+    endif()
+endif()
+
 # scope_guard_test(<name> <source> [DOCTEST] [STD <std>] [DEFINES ...] [OPTIONS ...]
 #                  [COMPILE_ERROR <regex> | RUNTIME_ERROR <regex>])
 function(scope_guard_test name source)
@@ -58,6 +74,7 @@ function(scope_guard_test name source)
     if(arg_DOCTEST)
         target_include_directories(${target} PRIVATE 3rdparty/doctest)
         target_compile_definitions(${target} PRIVATE DOCTEST_CONFIG_USE_STD_HEADERS)
+        target_compile_options(${target} PRIVATE ${DOCTEST_OPTIONS})
     endif()
 
     if(arg_COMPILE_ERROR)
@@ -144,6 +161,12 @@ foreach(std ${DEFAULT_STD} 17)
     scope_guard_test(fail-unused-cpp${std} failure_test.cpp STD ${std} DEFINES SCOPE_GUARD_TEST_UNUSED_ACTION_VARIABLE COMPILE_ERROR "${unused_error}")
     scope_guard_test(fail-unused-with-cpp${std} failure_test.cpp STD ${std} DEFINES SCOPE_GUARD_TEST_UNUSED_ACTION_VARIABLE SCOPE_GUARD_TEST_WITH COMPILE_ERROR "${unused_error}")
 endforeach()
+
+# COUNTER workarounds must not hide __COUNTER__ in user actions.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 22)
+    scope_guard_test(fail-user-counter failure_test.cpp DEFINES SCOPE_GUARD_TEST_USER_COUNTER COMPILE_ERROR "is a C2y extension")
+    scope_guard_test(fail-user-counter-with failure_test.cpp DEFINES SCOPE_GUARD_TEST_USER_COUNTER SCOPE_GUARD_TEST_WITH COMPILE_ERROR "is a C2y extension")
+endif()
 
 if(IS_TOPLEVEL_PROJECT)
     add_subdirectory(integration)

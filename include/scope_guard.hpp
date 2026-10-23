@@ -128,6 +128,11 @@ class on_exit_policy {
   bool should_execute() const noexcept {
     return execute_;
   }
+
+  template <typename F>
+  static void construction_failed(F& action) {
+    action();
+  }
 };
 
 class on_fail_policy {
@@ -142,6 +147,11 @@ class on_fail_policy {
 
   bool should_execute() const noexcept {
     return ec_ != -1 && ec_ < uncaught_exceptions();
+  }
+
+  template <typename F>
+  static void construction_failed(F& action) {
+    action();
   }
 };
 
@@ -158,6 +168,9 @@ class on_success_policy {
   bool should_execute() const noexcept {
     return ec_ != -1 && ec_ >= uncaught_exceptions();
   }
+
+  template <typename F>
+  static void construction_failed(F&) noexcept {}
 };
 
 template <typename T, typename = void>
@@ -207,6 +220,26 @@ class scope_guard {
   void* operator new(std::size_t) = delete;
   void operator delete(void*) = delete;
 
+  scope_guard(A&& action, std::true_type) noexcept
+      : policy_{true},
+        action_(NEARGYE_SCOPE_GUARD_MOV(action)) {}
+
+#if defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  // A failed action move still runs the action, except for scope_success.
+  scope_guard(A&& action, std::false_type) try
+      : policy_{true},
+        action_(NEARGYE_SCOPE_GUARD_MOV(action)) {
+  } catch (...) {
+    NEARGYE_SCOPE_GUARD_TRY
+      P::construction_failed(action);
+    NEARGYE_SCOPE_GUARD_CATCH
+  }
+#else
+  scope_guard(A&& action, std::false_type)
+      : policy_{true},
+        action_(NEARGYE_SCOPE_GUARD_MOV(action)) {}
+#endif
+
  public:
   scope_guard() = delete;
   scope_guard(const scope_guard&) = delete;
@@ -224,8 +257,7 @@ class scope_guard {
   scope_guard(A& action) = delete;
 
   explicit scope_guard(A&& action) noexcept(std::is_nothrow_move_constructible<A>::value)
-      : policy_{true},
-        action_(NEARGYE_SCOPE_GUARD_MOV(action)) {}
+      : scope_guard(NEARGYE_SCOPE_GUARD_MOV(action), typename std::is_nothrow_move_constructible<A>::type{}) {}
 
   void dismiss() noexcept {
     policy_.dismiss();

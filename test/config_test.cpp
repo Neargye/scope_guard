@@ -85,7 +85,7 @@ TEST_CASE("SUPPRESS does not catch construction or guard move exceptions") {
     auto guard = scope_guard::make_scope_exit(ThrowingMoveAction{executions, throw_on_move});
     (void)guard;
   }(), std::runtime_error);
-  REQUIRE(executions == 0);
+  REQUIRE(executions == 1);
 
   throw_on_move = false;
   {
@@ -95,9 +95,9 @@ TEST_CASE("SUPPRESS does not catch construction or guard move exceptions") {
       auto destination = std::move(source);
       (void)destination;
     }(), std::runtime_error);
-    REQUIRE(executions == 0);
+    REQUIRE(executions == 1);
   }
-  REQUIRE(executions == 1);
+  REQUIRE(executions == 2);
   REQUIRE(scope_guard_suppressed_exceptions == 0);
 }
 
@@ -168,7 +168,7 @@ TEST_CASE("exceptions from the action destructor propagate") {
   }(), std::runtime_error);
 }
 
-TEST_CASE("a throwing action move does not establish a guard") {
+TEST_CASE("a throwing action move runs the action, except for scope_success") {
   int executions = 0;
   bool throw_on_move = true;
 
@@ -176,7 +176,19 @@ TEST_CASE("a throwing action move does not establish a guard") {
     auto guard = scope_guard::make_scope_exit(ThrowingMoveAction{executions, throw_on_move});
     (void)guard;
   }(), std::runtime_error);
-  REQUIRE(executions == 0);
+  REQUIRE(executions == 1);
+
+  REQUIRE_THROWS_AS([&]() {
+    auto guard = scope_guard::make_scope_fail(ThrowingMoveAction{executions, throw_on_move});
+    (void)guard;
+  }(), std::runtime_error);
+  REQUIRE(executions == 2);
+
+  REQUIRE_THROWS_AS([&]() {
+    auto guard = scope_guard::make_scope_success(ThrowingMoveAction{executions, throw_on_move});
+    (void)guard;
+  }(), std::runtime_error);
+  REQUIRE(executions == 2);
 }
 
 TEST_CASE("a failed guard move leaves the source guard active") {

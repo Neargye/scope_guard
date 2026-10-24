@@ -24,7 +24,8 @@ endif()
 set(diagnostic_output "${combined_output}")
 if(BUILD_TARGET)
     # Match actual GCC/Clang/MSVC diagnostics, not source excerpts or build commands.
-    string(REGEX MATCHALL "[^\n]*: (fatal error|error|warning)(:| [A-Z][0-9]+:)[^\n]*" diagnostic_lines "${combined_output}")
+    # MSBuild prints clang-cl diagnostics as "error : text".
+    string(REGEX MATCHALL "[^\n]*: (fatal error|error|warning)( ?:| [A-Z][0-9]+:)[^\n]*" diagnostic_lines "${combined_output}")
     string(JOIN "\n" diagnostic_output ${diagnostic_lines})
 endif()
 

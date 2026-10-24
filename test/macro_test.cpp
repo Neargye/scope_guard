@@ -67,6 +67,14 @@ int main() {
   if (failures != 2) {
     return 2;
   }
+
+#  if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
+  try {
+    SCOPE_EXIT{ throw std::runtime_error{"cleanup failure"}; };
+  } catch (...) {
+    return 4;
+  }
+#  endif
 #endif
 
   return 0;

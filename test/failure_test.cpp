@@ -41,7 +41,7 @@ int main() {
   (void)guard;
 }
 
-#elif defined(SCOPE_GUARD_TEST_REJECT_LVALUE_ACTION) || defined(SCOPE_GUARD_TEST_REJECT_CONST_RVALUE_ACTION) || defined(SCOPE_GUARD_TEST_REJECT_NON_MOVABLE_ACTION)
+#elif defined(SCOPE_GUARD_TEST_REJECT_LVALUE_ACTION) || defined(SCOPE_GUARD_TEST_REJECT_CONST_RVALUE_ACTION) || defined(SCOPE_GUARD_TEST_REJECT_NON_MOVABLE_ACTION) || defined(SCOPE_GUARD_TEST_REJECT_FUNCTION_POINTER_VARIABLE)
 
 struct Action {
   void operator() () {}
@@ -60,6 +60,9 @@ int main() {
 #  elif defined(SCOPE_GUARD_TEST_REJECT_CONST_RVALUE_ACTION)
   const Action action{};
   auto guard = scope_guard::make_scope_exit(std::move(action));
+#  elif defined(SCOPE_GUARD_TEST_REJECT_FUNCTION_POINTER_VARIABLE)
+  void (*action)() = []() {};
+  auto guard = scope_guard::make_scope_exit(action);
 #  else
   auto guard = scope_guard::make_scope_exit(NonMovableAction{});
 #  endif

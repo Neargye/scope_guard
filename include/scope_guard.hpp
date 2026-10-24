@@ -231,14 +231,19 @@ class scope_guard {
         action_(NEARGYE_SCOPE_GUARD_MOV(action)) {}
 
 #if defined(__cpp_exceptions) || defined(_CPPUNWIND)
+  // GCC 9-10 and MSVC rethrow the wrong exception after a handler nested in a constructor try block, so suppress in a helper.
+  static void handle_construction_failure(A& action) {
+    NEARGYE_SCOPE_GUARD_TRY
+      P::construction_failed(action);
+    NEARGYE_SCOPE_GUARD_CATCH
+  }
+
   // A failed action move still runs the action, except for scope_success.
   scope_guard(A&& action, std::false_type) try
       : policy_{true},
         action_(NEARGYE_SCOPE_GUARD_MOV(action)) {
   } catch (...) {
-    NEARGYE_SCOPE_GUARD_TRY
-      P::construction_failed(action);
-    NEARGYE_SCOPE_GUARD_CATCH
+    handle_construction_failure(action);
   }
 #else
   scope_guard(A&& action, std::false_type)

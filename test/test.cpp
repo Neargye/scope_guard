@@ -220,6 +220,15 @@ TEST_CASE("factory functions create guards") {
     REQUIRE(function_pointer_count == 3);
   }
 
+  SUBCASE("moved function pointer variables") {
+    function_pointer_count = 0;
+    {
+      void (*cleanup)() = function_pointer_cleanup;
+      auto guard = scope_guard::make_scope_exit(std::move(cleanup));
+    }
+    REQUIRE(function_pointer_count == 1);
+  }
+
   SUBCASE("function names and pointers during unwinding") {
     function_pointer_count = 0;
 

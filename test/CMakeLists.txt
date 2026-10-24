@@ -155,6 +155,11 @@ else()
     scope_guard_test(fail-const-rvalue failure_test.cpp DEFINES SCOPE_GUARD_TEST_REJECT_CONST_RVALUE_ACTION COMPILE_ERROR "${storable_error}")
 endif()
 scope_guard_test(fail-non-movable failure_test.cpp DEFINES SCOPE_GUARD_TEST_REJECT_NON_MOVABLE_ACTION COMPILE_ERROR "${storable_error}")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    scope_guard_test(fail-function-pointer-variable failure_test.cpp DEFINES SCOPE_GUARD_TEST_REJECT_FUNCTION_POINTER_VARIABLE COMPILE_ERROR "error C2280: 'scope_guard::detail::scope_guard<[^']*::scope_guard\\(")
+else()
+    scope_guard_test(fail-function-pointer-variable failure_test.cpp DEFINES SCOPE_GUARD_TEST_REJECT_FUNCTION_POINTER_VARIABLE COMPILE_ERROR "${storable_error}")
+endif()
 
 # Attribute fallbacks before C++17 and standard attributes from C++17.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

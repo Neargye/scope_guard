@@ -101,6 +101,27 @@ TEST_CASE("SUPPRESS does not catch construction or guard move exceptions") {
   REQUIRE(scope_guard_suppressed_exceptions == 0);
 }
 
+struct ThrowingMoveAndCallAction {
+  ThrowingMoveAndCallAction() = default;
+  ThrowingMoveAndCallAction(ThrowingMoveAndCallAction&&) {
+    throw std::runtime_error{"move"};
+  }
+
+  void operator() () {
+    throw std::logic_error{"action"};
+  }
+};
+
+TEST_CASE("SUPPRESS suppresses an action run after a failed move") {
+  scope_guard_suppressed_exceptions = 0;
+
+  REQUIRE_THROWS_AS([]() {
+    auto guard = scope_guard::make_scope_exit(ThrowingMoveAndCallAction{});
+    (void)guard;
+  }(), std::runtime_error);
+  REQUIRE(scope_guard_suppressed_exceptions == 1);
+}
+
 TEST_CASE("SCOPE_GUARD_SUPPRESS_THROW_ACTION suppresses cleanup exceptions") {
   int count = 0;
   scope_guard_suppressed_exceptions = 0;

@@ -276,6 +276,10 @@ TEST_CASE("default action exceptions propagate") {
   REQUIRE_THROWS_AS([&]() {
     SCOPE_EXIT{ throw std::runtime_error{"cleanup failure"}; };
   }(), std::runtime_error);
+
+  REQUIRE_THROWS_AS([&]() {
+    SCOPE_SUCCESS{ throw std::runtime_error{"commit failure"}; };
+  }(), std::runtime_error);
 }
 
 TEST_CASE("moving dismissed guards does not reactivate them") {

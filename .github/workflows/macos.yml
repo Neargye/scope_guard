@@ -1,29 +1,47 @@
 name: macos
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15]
-        build_type: [Release, Debug]
+        os: [macos-15, macos-26]
 
-    name: "${{ matrix.os }} / ${{ matrix.build_type }}"
+    name: "${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v7
+    - uses: actions/checkout@v7
 
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+    - name: Compiler version
+      run: |
+        compiler="$(c++ --version | head -n 1), $(xcodebuild -version | head -n 1)"
+        echo "$compiler"
+        echo "::notice title=Compiler::$compiler"
+        echo "**Compiler:** $compiler" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
+    - name: Build and test
+      run: |
+        for build_type in Release Debug; do
+          echo "::group::$build_type"
+          cmake -S . -B "build-$build_type" -DCMAKE_BUILD_TYPE="$build_type"
+          cmake --build "build-$build_type" --parallel "$(sysctl -n hw.logicalcpu)"
+          ctest --test-dir "build-$build_type" --parallel "$(sysctl -n hw.logicalcpu)" --output-on-failure --no-tests=error
+          echo "::endgroup::"
+        done

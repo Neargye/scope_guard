@@ -1,39 +1,100 @@
 name: ubuntu
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         compiler:
-          - { name: "GCC 12",   cc: "gcc-12",   cxx: "g++-12" }
-          - { name: "GCC 13",   cc: "gcc-13",   cxx: "g++-13" }
-          - { name: "GCC 14",   cc: "gcc-14",   cxx: "g++-14" }
-          - { name: "Clang 16", cc: "clang-16", cxx: "clang++-16" }
-          - { name: "Clang 17", cc: "clang-17", cxx: "clang++-17" }
-          - { name: "Clang 18", cc: "clang-18", cxx: "clang++-18" }
-        build_type: [Release, Debug]
+        - { cc: "gcc-9",    cxx: "g++-9",      os: "ubuntu-22.04" } # Minimum supported GCC.
+        - { cc: "gcc-12",   cxx: "g++-12",     os: "ubuntu-22.04" }
+        - { cc: "gcc-14",   cxx: "g++-14",     os: "ubuntu-24.04" }
+        - { cc: "gcc-16",   cxx: "g++-16",     os: "ubuntu-26.04", sanitize: true }
+        - { cc: "clang-14", cxx: "clang++-14", os: "ubuntu-22.04" }
+        - { cc: "clang-18", cxx: "clang++-18", os: "ubuntu-24.04" }
+        - { cc: "clang-22", cxx: "clang++-22", os: "ubuntu-24.04" } # Macro-local __COUNTER__ workaround.
+        - { cc: "clang-23", cxx: "clang++-23", os: "ubuntu-24.04", sanitize: true } # system_header __COUNTER__ path.
 
-    name: "${{ matrix.compiler.name }} / ${{ matrix.build_type }}"
-    runs-on: ubuntu-24.04
-
+    name: "${{ matrix.compiler.cc }}"
+    runs-on: ${{ matrix.compiler.os }}
     env:
       CC: ${{ matrix.compiler.cc }}
       CXX: ${{ matrix.compiler.cxx }}
 
     steps:
-      - uses: actions/checkout@v7
+    - uses: actions/checkout@v7
 
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+    - name: Install clang
+      if: ${{ startsWith(matrix.compiler.cc, 'clang') }}
+      run: |
+        if command -v "$CXX" > /dev/null 2>&1; then
+          exit 0
+        fi
 
-      - name: Build
-        run: cmake --build build --parallel
+        wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/llvm-archive-keyring.gpg > /dev/null
 
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
+        clang_version="${{ matrix.compiler.cc }}"
+        clang_version="${clang_version#clang-}"
+        ubuntu_codename="$(lsb_release -cs)"
+
+        echo "deb [signed-by=/etc/apt/keyrings/llvm-archive-keyring.gpg] https://apt.llvm.org/${ubuntu_codename}/ llvm-toolchain-${ubuntu_codename}-${clang_version} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.compiler.cc }}
+
+    - name: Install gcc
+      if: ${{ startsWith(matrix.compiler.cc, 'gcc') }}
+      run: |
+        if command -v "$CXX" > /dev/null 2>&1; then
+          exit 0
+        fi
+
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.compiler.cxx }}
+
+    - name: Compiler version
+      run: |
+        compiler="$("$CXX" --version | head -n 1)"
+        echo "$compiler"
+        echo "::notice title=Compiler::$compiler"
+        echo "**Compiler:** $compiler" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Build and test
+      run: |
+        for build_type in Release Debug; do
+          echo "::group::$build_type"
+          cmake -S . -B "build-$build_type" -DCMAKE_BUILD_TYPE="$build_type"
+          cmake --build "build-$build_type" --parallel "$(nproc)"
+          ctest --test-dir "build-$build_type" --parallel "$(nproc)" --output-on-failure --no-tests=error
+          echo "::endgroup::"
+        done
+
+    - name: Sanitizers (ASan + UBSan)
+      if: ${{ matrix.compiler.sanitize }}
+      env:
+        CXXFLAGS: -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
+        LDFLAGS: -fsanitize=address,undefined
+        ASAN_OPTIONS: detect_leaks=1:strict_string_checks=1
+        UBSAN_OPTIONS: print_stacktrace=1
+      run: |
+        # Newer runner kernels use more ASLR entropy than older sanitizer runtimes support.
+        sudo sysctl vm.mmap_rnd_bits=28
+        cmake -S . -B build-sanitize -DCMAKE_BUILD_TYPE=Debug
+        cmake --build build-sanitize --parallel "$(nproc)"
+        ctest --test-dir build-sanitize --parallel "$(nproc)" --output-on-failure --no-tests=error

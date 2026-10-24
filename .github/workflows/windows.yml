@@ -1,50 +1,49 @@
 name: windows
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
+    timeout-minutes: 30
+    runs-on: ${{ matrix.config.os }}
+    defaults:
+      run:
+        shell: pwsh
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, windows-2025]
-        config: [Release, Debug]
+        config:
+        - { os: windows-2022, compiler: "msvc-2022", toolset: "", build_types: [Release, Debug] }
+        - { os: windows-2025, compiler: "msvc-2026", toolset: "", build_types: [Release, Debug] }
+        - { os: windows-2022, compiler: "msvc-v142", toolset: v142, build_types: [Release] } # Minimum supported MSVC.
+        - { os: windows-2025, compiler: "clang-cl", toolset: ClangCL, build_types: [Release] }
 
-    name: "${{ matrix.os }} / x64 / ${{ matrix.config }}"
-    runs-on: ${{ matrix.os }}
-
+    name: "${{ matrix.config.compiler }} (${{ matrix.config.os }})"
     steps:
-      - uses: actions/checkout@v7
+    - uses: actions/checkout@v7
 
-      - name: Configure
-        run: cmake -S . -B build -A x64
-
-      - name: Build
-        run: cmake --build build --parallel --config ${{ matrix.config }}
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure -C ${{ matrix.config }}
-
-  clangcl:
-    strategy:
-      fail-fast: false
-      matrix:
-        config: [Release, Debug]
-
-    name: "windows-2022 / ClangCL / x64 / ${{ matrix.config }}"
-    runs-on: windows-2022
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Configure
-        run: cmake -S . -B build -A x64 -T ClangCL
-
-      - name: Build
-        run: cmake --build build --parallel --config ${{ matrix.config }}
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure -C ${{ matrix.config }}
+    - name: Build and test
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $true # Stop on the first failing command.
+        foreach ($platform in 'x64', 'Win32') {
+          cmake -S . -B "build-$platform" -A $platform -T "${{ matrix.config.toolset }}"
+          foreach ($buildType in "${{ join(matrix.config.build_types, ' ') }}" -split ' ') {
+            Write-Output "::group::$platform / $buildType"
+            cmake --build "build-$platform" --parallel --config $buildType
+            ctest --test-dir "build-$platform" --parallel $env:NUMBER_OF_PROCESSORS --output-on-failure --no-tests=error -C $buildType
+            Write-Output "::endgroup::"
+          }
+        }

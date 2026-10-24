@@ -218,7 +218,9 @@ class scope_guard {
   A action_;
 
   void* operator new(std::size_t) = delete;
+  void* operator new[](std::size_t) = delete;
   void operator delete(void*) = delete;
+  void operator delete[](void*) = delete;
 
   scope_guard(A&& action, std::true_type) noexcept
       : policy_{true},

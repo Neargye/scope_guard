@@ -112,6 +112,20 @@ int main() {
   (void)guard;
 }
 
+#elif defined(SCOPE_GUARD_TEST_HEAP_ALLOCATION)
+
+#  include <utility>
+
+int main() {
+  auto guard = scope_guard::make_scope_exit([]() {});
+#  if defined(SCOPE_GUARD_TEST_ARRAY)
+  auto* copy = new decltype(guard)[1]{std::move(guard)};
+#  else
+  auto* copy = new decltype(guard)(std::move(guard));
+#  endif
+  (void)copy;
+}
+
 #elif defined(SCOPE_GUARD_TEST_THROW_DURING_UNWINDING)
 
 #  include <cstdio>

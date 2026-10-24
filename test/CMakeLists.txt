@@ -128,6 +128,8 @@ foreach(policy NO_THROW SUPPRESS_THROW)
     string(REPLACE "_" "-" name "${name}")
     scope_guard_test(fail-throwing-destructor-${name} failure_test.cpp DEFINES SCOPE_GUARD_TEST_REJECT_THROWING_DESTRUCTOR SCOPE_GUARD_${policy}_ACTION COMPILE_ERROR "scope_guard requires nothrow destructible action")
 endforeach()
+scope_guard_test(fail-heap-new failure_test.cpp DEFINES SCOPE_GUARD_TEST_HEAP_ALLOCATION COMPILE_ERROR "deleted function.*operator new[(']|operator new[(].*deleted function")
+scope_guard_test(fail-heap-new-array failure_test.cpp DEFINES SCOPE_GUARD_TEST_HEAP_ALLOCATION SCOPE_GUARD_TEST_ARRAY COMPILE_ERROR "deleted function.*operator new ?\\[\\]|operator new ?\\[\\].*deleted function")
 scope_guard_test(fail-throw-during-unwinding failure_test.cpp DEFINES SCOPE_GUARD_TEST_THROW_DURING_UNWINDING RUNTIME_ERROR "scope_fail action terminated")
 
 foreach(policy exit fail success)

@@ -61,6 +61,7 @@
 
 #if !defined(_MSC_VER) && (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201703L
 #  include <cxxabi.h>
+// Clang reports __GNUC__ 4.2, so it also takes this branch and declares __cxa_get_globals.
 #  if !defined(__FreeBSD__) && (defined(_LIBCPPABI_VERSION) || defined(__OpenBSD__) || \
       (defined(__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__) < 407) || \
       (defined(__QNXNTO__) && !defined(__GLIBCXX__) && !defined(__GLIBCPP__)))
@@ -107,6 +108,7 @@ namespace detail {
 
 #if !defined(_MSC_VER) && (defined(__clang__) || defined(__GNUC__)) && __cplusplus < 201703L
 inline int uncaught_exceptions() noexcept {
+  // __cxa_eh_globals starts with the caughtExceptions pointer, followed by uncaughtExceptions.
   return static_cast<int>(*reinterpret_cast<const unsigned int*>(reinterpret_cast<const char*>(::__cxxabiv1::__cxa_get_globals()) + sizeof(void*)));
 }
 #else
@@ -135,6 +137,7 @@ class on_exit_policy {
   }
 };
 
+// Failure means more exceptions are in flight than at construction. The count is per thread.
 class on_fail_policy {
   int ec_;
 
@@ -217,6 +220,7 @@ class scope_guard {
   P policy_;
   A action_;
 
+  // Guards need automatic storage because the exception baseline belongs to the creating scope.
   void* operator new(std::size_t) = delete;
   void* operator new[](std::size_t) = delete;
   void operator delete(void*) = delete;
@@ -248,6 +252,7 @@ class scope_guard {
   scope_guard& operator=(const scope_guard&) = delete;
   scope_guard& operator=(scope_guard&&) = delete;
 
+  // The new guard stays inactive until the action move succeeds, so a failed move leaves only the source active.
   scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{false},
         action_(NEARGYE_SCOPE_GUARD_MOV(other.action_)) {
@@ -372,6 +377,7 @@ using detail::make_scope_success;
 #  define NEARGYE_SCOPE_GUARD_COUNTER_POP
 #endif
 
+// Both loops share one flag and run once, so break and continue stay inside this block.
 #define NEARGYE_SCOPE_GUARD_WITH_(i, j, ...) for (bool i = true; i; i = false) for (auto j = __VA_ARGS__; i; i = false)
 #define NEARGYE_SCOPE_GUARD_WITH(...)        NEARGYE_SCOPE_GUARD_COUNTER_PUSH NEARGYE_SCOPE_GUARD_WITH_(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_FLAG_, NEARGYE_SCOPE_GUARD_COUNTER), NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_OBJECT_, NEARGYE_SCOPE_GUARD_COUNTER), __VA_ARGS__) NEARGYE_SCOPE_GUARD_COUNTER_POP
 

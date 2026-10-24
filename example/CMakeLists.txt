@@ -1,14 +1,15 @@
 ﻿include(CheckCXXCompilerFlag)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 if(MSVC)
     set(OPTIONS /W4 /WX)
     check_cxx_compiler_flag(/permissive- HAS_PERMISSIVE_FLAG)
     if(HAS_PERMISSIVE_FLAG)
         set(OPTIONS ${OPTIONS} /permissive-)
     endif()
-    set(OPTIONS ${OPTIONS} /wd4702) # Disable warning C4702: unreachable code
+    set(OPTIONS ${OPTIONS} /wd4702) # C4702: unreachable code
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_VERBOSE_MAKEFILE ON)
     set(OPTIONS -Wall -Wextra -pedantic-errors -Werror)
 endif()
 

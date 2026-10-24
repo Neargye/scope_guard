@@ -74,7 +74,6 @@ void factory_scope_fail() {
       rolled_back = true;
       std::cout << "factory rollback\n";
     });
-    (void)rollback;
 
     throw std::runtime_error{"factory operation failed"};
   } catch (const std::exception& error) {

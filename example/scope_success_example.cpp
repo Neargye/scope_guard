@@ -66,7 +66,6 @@ void factory_scope_success() {
       notified = true;
       std::cout << "factory success action\n";
     });
-    (void)notify;
   }
 
   std::cout << "factory notification sent: " << (notified ? "yes" : "no") << '\n';

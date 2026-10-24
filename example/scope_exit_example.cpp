@@ -20,31 +20,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <fstream>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 
+// Suppress and report exceptions from cleanup actions, as shown in suppressed_action_exception().
 #define SCOPE_GUARD_SUPPRESS_THROW_ACTION
-#define SCOPE_GUARD_CATCH_HANDLER std::cout << "scope guard action failed\n";
+#define SCOPE_GUARD_CATCH_HANDLER std::cerr << "scope guard action failed\n";
 
 #include <scope_guard.hpp>
 
 namespace {
 
 void basic_scope_exit() {
-  std::fstream file{"test.txt", std::fstream::out | std::fstream::trunc};
-  if (!file) {
-    std::cerr << "failed to open test.txt\n";
+  void* buffer = std::malloc(64);
+  if (!buffer) {
+    std::cerr << "allocation failed\n";
     return;
   }
 
   SCOPE_EXIT{
-    file.close();
-    std::cout << "file closed\n";
+    std::free(buffer);
+    std::cout << "buffer freed\n";
   };
 
-  file << "scope_exit example\n";
-  std::cout << "file written\n";
+  std::cout << "buffer used\n";
 }
 
 void named_scope_exit() {
@@ -60,9 +60,18 @@ void factory_scope_exit() {
   auto cleanup = scope_guard::make_scope_exit([]() {
     std::cout << "factory cleanup\n";
   });
-  (void)cleanup;
 
   std::cout << "factory body\n";
+}
+
+void function_cleanup() {
+  std::cout << "function cleanup\n";
+}
+
+void function_scope_exit() {
+  auto cleanup = scope_guard::make_scope_exit(function_cleanup);
+
+  std::cout << "function body\n";
 }
 
 void with_scope_exit() {
@@ -92,6 +101,7 @@ int main() {
   basic_scope_exit();
   named_scope_exit();
   factory_scope_exit();
+  function_scope_exit();
   with_scope_exit();
   defer();
   suppressed_action_exception();

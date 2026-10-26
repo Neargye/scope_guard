@@ -1,6 +1,11 @@
 ﻿cmake_minimum_required(VERSION 3.15)
 
-project(scope_guard VERSION "0.9.5" LANGUAGES CXX)
+project(scope_guard
+    VERSION "0.10.0"
+    DESCRIPTION "Header-only C++11 scope guard and defer library"
+    HOMEPAGE_URL "https://github.com/Neargye/scope_guard"
+    LANGUAGES CXX
+)
 
 include(GNUInstallDirs)
 

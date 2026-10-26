@@ -30,7 +30,7 @@ void read_file() {
 `return`, `break` and `continue` count as normal exits. Exceptions caught within the scope do not trigger `SCOPE_FAIL`.
 Failure means the uncaught exception count has increased since guard construction. The count is per thread, so do not keep `SCOPE_FAIL` or `SCOPE_SUCCESS` guards across `co_await` or move them to another thread.
 
-Guards run in reverse order of construction. Macro actions capture by reference (`[&]`). Referenced objects must outlive the guard.
+Guards run in reverse order of construction. Macro actions capture by reference (`[&]`). Referenced objects must remain usable until the action runs. A returned local may already be moved from when the action runs.
 
 ### Named guards and cancellation
 
@@ -43,7 +43,7 @@ MAKE_SCOPE_EXIT(rollback) { persons.pop_back(); };
 rollback.dismiss(); // Keep the change.
 ```
 
-Successful move construction transfers responsibility for the action. Guards cannot be copied or assigned.
+Successful move construction transfers responsibility for the action. A failed move does not dismiss the source guard. Guards cannot be copied or assigned.
 
 ### Factories
 
@@ -85,11 +85,13 @@ Both non-default policies require non-throwing action destructors. Suppression d
 
 Before C++17, `noexcept` is not part of a function pointer type. With `SCOPE_GUARD_NO_THROW_ACTION`, wrap function names in a `noexcept` lambda.
 
-If storing the action throws, `scope_exit` and `scope_fail` run it before the exception propagates. `scope_success` does not.
+If moving the action into a new guard throws, `scope_exit` and `scope_fail` invoke the source action. `scope_success` does not. If this invocation also throws under `SCOPE_GUARD_MAY_THROW_ACTION`, its exception replaces the move exception.
+
+A throwing move must leave the source action usable for cleanup, including when moving an existing guard. Potentially throwing moves are not replaced with copies.
 
 `SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE` additionally requires a nothrow move-constructible action with any policy.
 
-Suppressed exceptions are ignored unless a non-throwing `SCOPE_GUARD_CATCH_HANDLER` statement is defined:
+Without a handler, suppressed exceptions are ignored. To log cleanup failures while preserving an exception already being unwound, define `SCOPE_GUARD_SUPPRESS_THROW_ACTION` and a non-throwing `SCOPE_GUARD_CATCH_HANDLER`:
 
 ```cpp
 void log_cleanup_failure() noexcept;

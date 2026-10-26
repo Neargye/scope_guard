@@ -44,10 +44,11 @@
 // scope_guard exception settings:
 // SCOPE_GUARD_NO_THROW_CONSTRUCTIBLE requires the action to be nothrow move-constructible.
 // SCOPE_GUARD_MAY_THROW_ACTION allows exceptions from the action to propagate (default).
-// SCOPE_GUARD_NO_THROW_ACTION requires the action to be noexcept.
-// SCOPE_GUARD_SUPPRESS_THROW_ACTION suppresses exceptions thrown by the action.
+// SCOPE_GUARD_NO_THROW_ACTION requires noexcept action invocation and destruction.
+// SCOPE_GUARD_SUPPRESS_THROW_ACTION catches invocation exceptions when C++ exceptions are enabled.
 // SCOPE_GUARD_CATCH_HANDLER is a non-throwing statement run when an action exception is caught. It is ignored unless SCOPE_GUARD_SUPPRESS_THROW_ACTION is defined.
 // Configure these settings consistently in every translation unit before including this header.
+// Names used by the catch handler must be declared before this header.
 
 #if !defined(SCOPE_GUARD_MAY_THROW_ACTION) && !defined(SCOPE_GUARD_NO_THROW_ACTION) && !defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION)
 #  define SCOPE_GUARD_MAY_THROW_ACTION
@@ -80,6 +81,7 @@ namespace scope_guard {
 
 namespace detail {
 
+// Clang can define __EXCEPTIONS even with -fno-cxx-exceptions, so do not use it here.
 #if defined(SCOPE_GUARD_SUPPRESS_THROW_ACTION) && (defined(__cpp_exceptions) || defined(_CPPUNWIND))
 #  define NEARGYE_SCOPE_GUARD_NOEXCEPT(...) noexcept
 #  define NEARGYE_SCOPE_GUARD_TRY           try {
@@ -93,7 +95,7 @@ namespace detail {
 #define NEARGYE_SCOPE_GUARD_MOV(...) static_cast<typename std::remove_reference<decltype(__VA_ARGS__)>::type&&>(__VA_ARGS__)
 #define NEARGYE_SCOPE_GUARD_FWD(...) static_cast<decltype(__VA_ARGS__)&&>(__VA_ARGS__)
 
-// NEARGYE_SCOPE_GUARD_NODISCARD encourages the compiler to issue a warning if the return value is discarded.
+// A discarded factory result cannot guard the enclosing scope.
 #if defined(__clang__) || defined(__GNUC__)
 #  if __cplusplus >= 201703L
 #    define NEARGYE_SCOPE_GUARD_NODISCARD [[nodiscard]]
@@ -220,7 +222,7 @@ class scope_guard {
   P policy_;
   A action_;
 
-  // Guards need automatic storage because the exception baseline belongs to the creating scope.
+  // Discourage heap allocation: fail/success baselines belong to the creating scope.
   void* operator new(std::size_t) = delete;
   void* operator new[](std::size_t) = delete;
   void operator delete(void*) = delete;
@@ -238,12 +240,14 @@ class scope_guard {
     NEARGYE_SCOPE_GUARD_CATCH
   }
 
-  // A failed action move still runs the action, except for scope_success.
+  // No guard exists after a failed move, so exit/fail clean up through the source.
+  // The source must remain usable. Under MAY_THROW, a cleanup exception replaces the move exception.
   scope_guard(A&& action, std::false_type) try
       : policy_{true},
         action_(NEARGYE_SCOPE_GUARD_MOV(action)) {
   } catch (...) {
     handle_construction_failure(action);
+    // Falling through a constructor function-try-block handler rethrows the original exception.
   }
 #else
   scope_guard(A&& action, std::false_type)
@@ -257,7 +261,7 @@ class scope_guard {
   scope_guard& operator=(const scope_guard&) = delete;
   scope_guard& operator=(scope_guard&&) = delete;
 
-  // The new guard stays inactive until the action move succeeds, so a failed move leaves only the source active.
+  // Dismiss only after a successful move. Failure preserves activation, not the action's state.
   scope_guard(scope_guard&& other) noexcept(std::is_nothrow_move_constructible<A>::value)
       : policy_{false},
         action_(NEARGYE_SCOPE_GUARD_MOV(other.action_)) {
@@ -347,7 +351,7 @@ using detail::make_scope_success;
 
 } // namespace scope_guard
 
-// NEARGYE_SCOPE_GUARD_MAYBE_UNUSED suppresses compiler warnings on unused entities, if any.
+// MSVC accepts [[nodiscard]] in C++14, but [[maybe_unused]] requires C++17.
 #if defined(__clang__) || defined(__GNUC__)
 #  if __cplusplus >= 201703L
 #    define NEARGYE_SCOPE_GUARD_MAYBE_UNUSED [[maybe_unused]]
@@ -386,22 +390,22 @@ using detail::make_scope_success;
 #define NEARGYE_SCOPE_GUARD_WITH_(i, j, ...) for (bool i = true; i; i = false) for (auto j = __VA_ARGS__; i; i = false)
 #define NEARGYE_SCOPE_GUARD_WITH(...)        NEARGYE_SCOPE_GUARD_COUNTER_PUSH NEARGYE_SCOPE_GUARD_WITH_(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_FLAG_, NEARGYE_SCOPE_GUARD_COUNTER), NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_OBJECT_, NEARGYE_SCOPE_GUARD_COUNTER), __VA_ARGS__) NEARGYE_SCOPE_GUARD_COUNTER_POP
 
-// SCOPE_EXIT executes the action on scope exit.
+// SCOPE_EXIT runs on every scope exit.
 #define MAKE_SCOPE_EXIT(name)  auto name = NEARGYE_SCOPE_GUARD_MAKE_SCOPE_EXIT
 #define SCOPE_EXIT             NEARGYE_SCOPE_GUARD_COUNTER_PUSH NEARGYE_SCOPE_GUARD_MAYBE_UNUSED const MAKE_SCOPE_EXIT(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_SCOPE_EXIT_, NEARGYE_SCOPE_GUARD_COUNTER)) NEARGYE_SCOPE_GUARD_COUNTER_POP
 #define WITH_SCOPE_EXIT(...)   NEARGYE_SCOPE_GUARD_WITH(NEARGYE_SCOPE_GUARD_MAKE_SCOPE_EXIT{ __VA_ARGS__ })
 
-// SCOPE_FAIL executes the action when the scope is left during exception unwinding.
+// SCOPE_FAIL runs if the uncaught exception count increased since construction.
 #define MAKE_SCOPE_FAIL(name)  auto name = NEARGYE_SCOPE_GUARD_MAKE_SCOPE_FAIL
 #define SCOPE_FAIL             NEARGYE_SCOPE_GUARD_COUNTER_PUSH NEARGYE_SCOPE_GUARD_MAYBE_UNUSED const MAKE_SCOPE_FAIL(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_SCOPE_FAIL_, NEARGYE_SCOPE_GUARD_COUNTER)) NEARGYE_SCOPE_GUARD_COUNTER_POP
 #define WITH_SCOPE_FAIL(...)   NEARGYE_SCOPE_GUARD_WITH(NEARGYE_SCOPE_GUARD_MAKE_SCOPE_FAIL{ __VA_ARGS__ })
 
-// SCOPE_SUCCESS executes the action when the scope is not left during exception unwinding.
+// SCOPE_SUCCESS runs if the uncaught exception count has not increased since construction.
 #define MAKE_SCOPE_SUCCESS(name)  auto name = NEARGYE_SCOPE_GUARD_MAKE_SCOPE_SUCCESS
 #define SCOPE_SUCCESS             NEARGYE_SCOPE_GUARD_COUNTER_PUSH NEARGYE_SCOPE_GUARD_MAYBE_UNUSED const MAKE_SCOPE_SUCCESS(NEARGYE_SCOPE_GUARD_STR_CONCAT(NEARGYE_SCOPE_GUARD_SCOPE_SUCCESS_, NEARGYE_SCOPE_GUARD_COUNTER)) NEARGYE_SCOPE_GUARD_COUNTER_POP
 #define WITH_SCOPE_SUCCESS(...)   NEARGYE_SCOPE_GUARD_WITH(NEARGYE_SCOPE_GUARD_MAKE_SCOPE_SUCCESS{ __VA_ARGS__ })
 
-// DEFER executes the action on scope exit.
+// DEFER aliases the exit macros.
 #define MAKE_DEFER(name)  MAKE_SCOPE_EXIT(name)
 #define DEFER             SCOPE_EXIT
 #define WITH_DEFER(...)   WITH_SCOPE_EXIT(__VA_ARGS__)

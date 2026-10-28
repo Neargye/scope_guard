@@ -231,15 +231,18 @@ TEST_CASE("factory functions create guards") {
 
   SUBCASE("function names and pointers during unwinding") {
     function_pointer_count = 0;
+    int count_before_throw = -1;
 
-    REQUIRE_THROWS_AS([]() {
+    // A doctest assertion nested in REQUIRE_THROWS_AS triggers -Wshadow, so check the count afterwards.
+    REQUIRE_THROWS_AS([&count_before_throw]() {
       auto exit_guard = scope_guard::make_scope_exit(function_pointer_cleanup);
       auto pointer_guard = scope_guard::make_scope_exit(&function_pointer_cleanup);
       auto fail_guard = scope_guard::make_scope_fail(function_pointer_cleanup);
       auto success_guard = scope_guard::make_scope_success(function_pointer_cleanup);
-      REQUIRE(function_pointer_count == 0);
+      count_before_throw = function_pointer_count;
       throw std::runtime_error{"body failure"};
     }(), std::runtime_error);
+    REQUIRE(count_before_throw == 0);
     REQUIRE(function_pointer_count == 3);
   }
 }

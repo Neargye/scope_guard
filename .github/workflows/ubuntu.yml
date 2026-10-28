@@ -22,14 +22,14 @@ jobs:
       fail-fast: false
       matrix:
         compiler:
-        - { cc: "gcc-9",    cxx: "g++-9",      os: "ubuntu-22.04" } # Minimum supported GCC.
+        - { cc: "gcc-9",    cxx: "g++-9",      os: "ubuntu-22.04", strict: "c++11 c++17" } # Minimum supported GCC.
         - { cc: "gcc-12",   cxx: "g++-12",     os: "ubuntu-22.04" }
         - { cc: "gcc-14",   cxx: "g++-14",     os: "ubuntu-24.04" }
-        - { cc: "gcc-16",   cxx: "g++-16",     os: "ubuntu-26.04", sanitize: true }
+        - { cc: "gcc-16",   cxx: "g++-16",     os: "ubuntu-26.04", strict: "c++11 c++17 c++20 c++23", sanitize: true }
         - { cc: "clang-14", cxx: "clang++-14", os: "ubuntu-22.04" }
         - { cc: "clang-18", cxx: "clang++-18", os: "ubuntu-24.04" }
         - { cc: "clang-22", cxx: "clang++-22", os: "ubuntu-24.04" } # Macro-local __COUNTER__ workaround.
-        - { cc: "clang-23", cxx: "clang++-23", os: "ubuntu-24.04", sanitize: true } # system_header __COUNTER__ path.
+        - { cc: "clang-23", cxx: "clang++-23", os: "ubuntu-24.04", strict: "c++11 c++17 c++20 c++23", sanitize: true } # system_header __COUNTER__ path.
 
     name: "${{ matrix.compiler.cc }}"
     runs-on: ${{ matrix.compiler.os }}
@@ -40,33 +40,26 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    - name: Install clang
-      if: ${{ startsWith(matrix.compiler.cc, 'clang') }}
+    - name: Install compiler
       run: |
         if command -v "$CXX" > /dev/null 2>&1; then
           exit 0
         fi
 
-        wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/llvm-archive-keyring.gpg > /dev/null
-
-        clang_version="${{ matrix.compiler.cc }}"
-        clang_version="${clang_version#clang-}"
-        ubuntu_codename="$(lsb_release -cs)"
-
-        echo "deb [signed-by=/etc/apt/keyrings/llvm-archive-keyring.gpg] https://apt.llvm.org/${ubuntu_codename}/ llvm-toolchain-${ubuntu_codename}-${clang_version} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        case "$CC" in
+          clang-*)
+            codename="$(lsb_release -cs)"
+            wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/llvm-archive-keyring.gpg > /dev/null
+            echo "deb [signed-by=/etc/apt/keyrings/llvm-archive-keyring.gpg] https://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${CC#clang-} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+            package="$CC"
+            ;;
+          gcc-*)
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+            package="$CXX"
+            ;;
+        esac
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler.cc }}
-
-    - name: Install gcc
-      if: ${{ startsWith(matrix.compiler.cc, 'gcc') }}
-      run: |
-        if command -v "$CXX" > /dev/null 2>&1; then
-          exit 0
-        fi
-
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-        sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler.cxx }}
+        sudo apt-get install -y "$package"
 
     - name: Compiler version
       run: |
@@ -74,6 +67,50 @@ jobs:
         echo "$compiler"
         echo "::notice title=Compiler::$compiler"
         echo "**Compiler:** $compiler" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Strict warnings
+      if: ${{ matrix.compiler.strict }}
+      env:
+        STANDARDS: ${{ matrix.compiler.strict }}
+      run: |
+        # Public macros expand in user code compiled with user flags, so keep them clean under strict warnings.
+        flags=(-Wall -Wextra -pedantic-errors -Werror -Wconversion -Wsign-conversion -Wold-style-cast -Wundef
+               -Wcast-qual -Wnon-virtual-dtor -Wnull-dereference -Wimplicit-fallthrough)
+        case "$CXX" in
+          g++*) flags+=(-Wshadow -Wuseless-cast -Wduplicated-branches -Wduplicated-cond -Wlogical-op) ;;
+          *)    flags+=(-Wshadow-all -Wextra-semi -Wcomma -Wunreachable-code) ;;
+        esac
+        check() {
+          echo "$CXX $*"
+          "$CXX" -fsyntax-only "${flags[@]}" -Iinclude -Itest/3rdparty/doctest -DDOCTEST_CONFIG_USE_STD_HEADERS "$@"
+        }
+
+        # Same header configurations as test/CMakeLists.txt.
+        for std in $STANDARDS; do
+          echo "::group::$std"
+          for src in example/*.cpp test/test.cpp test/macro_test.cpp; do
+            check -std="$std" "$src"
+          done
+          for config in NO_THROW_ACTION SUPPRESS_THROW_ACTION THROWING_MOVE_CONSTRUCTION; do
+            check -std="$std" test/config_test.cpp -DSCOPE_GUARD_TEST_$config
+          done
+          for policy in NO_THROW SUPPRESS_THROW; do
+            check -std="$std" test/macro_test.cpp -DSCOPE_GUARD_${policy}_ACTION -DSCOPE_GUARD_NO_THROW_CONSTRUCTIBLE
+          done
+          for policy in MAY_THROW NO_THROW SUPPRESS_THROW; do
+            check -std="$std" test/macro_test.cpp -DSCOPE_GUARD_${policy}_ACTION -fno-exceptions
+          done
+          echo "::endgroup::"
+        done
+
+        echo "::group::cxxabi and no-cxx-exceptions"
+        # Pre-C++17 exception count fallback through <cxxabi.h>, in both include orders.
+        check -std=c++11 test/config_test.cpp -DSCOPE_GUARD_TEST_CXXABI -DSCOPE_GUARD_TEST_CXXABI_FIRST
+        check -std=c++11 test/config_test.cpp -DSCOPE_GUARD_TEST_CXXABI
+        if [[ "$CXX" == clang++* ]]; then
+          check test/macro_test.cpp -DSCOPE_GUARD_SUPPRESS_THROW_ACTION -fexceptions -fno-cxx-exceptions
+        fi
+        echo "::endgroup::"
 
     - name: Build and test
       run: |

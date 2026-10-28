@@ -23,11 +23,9 @@ jobs:
       matrix:
         compiler:
         - { cc: "gcc-9",    cxx: "g++-9",      os: "ubuntu-22.04", strict: "c++11 c++17" } # Minimum supported GCC.
-        - { cc: "gcc-12",   cxx: "g++-12",     os: "ubuntu-22.04" }
         - { cc: "gcc-14",   cxx: "g++-14",     os: "ubuntu-24.04" }
         - { cc: "gcc-16",   cxx: "g++-16",     os: "ubuntu-26.04", strict: "c++11 c++17 c++20 c++23", sanitize: true }
         - { cc: "clang-14", cxx: "clang++-14", os: "ubuntu-22.04" }
-        - { cc: "clang-18", cxx: "clang++-18", os: "ubuntu-24.04" }
         - { cc: "clang-22", cxx: "clang++-22", os: "ubuntu-24.04" } # Macro-local __COUNTER__ workaround.
         - { cc: "clang-23", cxx: "clang++-23", os: "ubuntu-24.04", strict: "c++11 c++17 c++20 c++23", sanitize: true } # system_header __COUNTER__ path.
 
@@ -81,36 +79,34 @@ jobs:
           *)    flags+=(-Wshadow-all -Wextra-semi -Wcomma -Wunreachable-code) ;;
         esac
         check() {
-          echo "$CXX $*"
-          "$CXX" -fsyntax-only "${flags[@]}" -Iinclude -Itest/3rdparty/doctest -DDOCTEST_CONFIG_USE_STD_HEADERS "$@"
+          echo "$CXX -std=$std $*"
+          "$CXX" -std="$std" -fsyntax-only "${flags[@]}" -Iinclude -Itest/3rdparty/doctest -DDOCTEST_CONFIG_USE_STD_HEADERS "$@"
         }
 
-        # Same header configurations as test/CMakeLists.txt.
         for std in $STANDARDS; do
           echo "::group::$std"
-          for src in example/*.cpp test/test.cpp test/macro_test.cpp; do
-            check -std="$std" "$src"
+          for src in example/*.cpp test/test_main.cpp test/test.cpp test/macro_test.cpp; do
+            check "$src"
           done
           for config in NO_THROW_ACTION SUPPRESS_THROW_ACTION THROWING_MOVE_CONSTRUCTION; do
-            check -std="$std" test/config_test.cpp -DSCOPE_GUARD_TEST_$config
+            check test/config_test.cpp -DSCOPE_GUARD_TEST_$config
           done
           for policy in NO_THROW SUPPRESS_THROW; do
-            check -std="$std" test/macro_test.cpp -DSCOPE_GUARD_${policy}_ACTION -DSCOPE_GUARD_NO_THROW_CONSTRUCTIBLE
+            check test/macro_test.cpp -DSCOPE_GUARD_${policy}_ACTION -DSCOPE_GUARD_NO_THROW_CONSTRUCTIBLE
           done
           for policy in MAY_THROW NO_THROW SUPPRESS_THROW; do
-            check -std="$std" test/macro_test.cpp -DSCOPE_GUARD_${policy}_ACTION -fno-exceptions
+            check test/macro_test.cpp -DSCOPE_GUARD_${policy}_ACTION -fno-exceptions
           done
+          if [[ "$CXX" == clang++* ]]; then
+            check test/macro_test.cpp -DSCOPE_GUARD_SUPPRESS_THROW_ACTION -fexceptions -fno-cxx-exceptions
+          fi
+          if [[ "$std" == c++11 ]]; then
+            # Pre-C++17 exception count fallback, in both include orders.
+            check test/config_test.cpp -DSCOPE_GUARD_TEST_CXXABI -DSCOPE_GUARD_TEST_CXXABI_FIRST
+            check test/config_test.cpp -DSCOPE_GUARD_TEST_CXXABI
+          fi
           echo "::endgroup::"
         done
-
-        echo "::group::cxxabi and no-cxx-exceptions"
-        # Pre-C++17 exception count fallback through <cxxabi.h>, in both include orders.
-        check -std=c++11 test/config_test.cpp -DSCOPE_GUARD_TEST_CXXABI -DSCOPE_GUARD_TEST_CXXABI_FIRST
-        check -std=c++11 test/config_test.cpp -DSCOPE_GUARD_TEST_CXXABI
-        if [[ "$CXX" == clang++* ]]; then
-          check test/macro_test.cpp -DSCOPE_GUARD_SUPPRESS_THROW_ACTION -fexceptions -fno-cxx-exceptions
-        fi
-        echo "::endgroup::"
 
     - name: Build and test
       run: |

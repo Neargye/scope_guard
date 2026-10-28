@@ -32,6 +32,12 @@ if(NOT SUPPORTED_STANDARDS)
 endif()
 list(GET SUPPORTED_STANDARDS 0 DEFAULT_STD)
 
+add_library(scope_guard-test-main OBJECT test_main.cpp)
+target_compile_options(scope_guard-test-main PRIVATE ${OPTIONS})
+target_include_directories(scope_guard-test-main PUBLIC 3rdparty/doctest)
+target_compile_definitions(scope_guard-test-main PUBLIC DOCTEST_CONFIG_USE_STD_HEADERS)
+set_target_properties(scope_guard-test-main PROPERTIES CXX_STANDARD ${DEFAULT_STD} CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+
 # Stock Clang 22 reports __COUNTER__ in guards nested in doctest assertion arguments.
 set(DOCTEST_OPTIONS)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 22)
@@ -72,8 +78,7 @@ function(scope_guard_test name source)
     target_compile_options(${target} PRIVATE ${OPTIONS} ${arg_OPTIONS})
     target_compile_definitions(${target} PRIVATE ${arg_DEFINES})
     if(arg_DOCTEST)
-        target_include_directories(${target} PRIVATE 3rdparty/doctest)
-        target_compile_definitions(${target} PRIVATE DOCTEST_CONFIG_USE_STD_HEADERS)
+        target_link_libraries(${target} PRIVATE scope_guard-test-main)
         target_compile_options(${target} PRIVATE ${DOCTEST_OPTIONS})
     endif()
 
